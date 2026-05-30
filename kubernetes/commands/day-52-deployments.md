@@ -1,3 +1,19 @@
+Yes. Your current version has **a lot of duplication** because the same commands appear 2–3 times:
+
+* `kubectl get deployments -n dev`
+* `kubectl get deployment nginx-deployment -n dev`
+* `kubectl get rs -n dev`
+* `kubectl get pods -n dev -w`
+* `kubectl rollout status`
+* `kubectl rollout history`
+* `kubectl describe deployment ... | grep Image`
+
+are all repeated later.
+
+For GitHub notes, it's cleaner to keep **one command → one explanation**.
+
+---
+
 # Day 52 - Kubernetes Deployments
 
 ## Create Deployment
@@ -6,223 +22,19 @@
 kubectl apply -f nginx-deployment.yaml
 ```
 
-Creates a Deployment from YAML.
+### Explanation
 
----
+Creates a Deployment from the YAML manifest.
 
-## View Deployments
-
-```bash
-kubectl get deployments -n dev
-```
-
-Shows:
-
-- READY
-- UP-TO-DATE
-- AVAILABLE
-
----
-
-## Describe Deployment
-
-```bash
-kubectl describe deployment nginx-deployment -n dev
-```
-
-Displays:
-
-- replicas
-- rollout strategy
-- events
-- conditions
-
----
-
-## View ReplicaSets
-
-```bash
-kubectl get rs -n dev
-```
-
-Shows ReplicaSets managed by Deployment.
-
----
-
-## View Pods
-
-```bash
-kubectl get pods -n dev
-```
-
-Lists Deployment-created Pods.
-
----
-
-# Self-Healing
-
-## Delete Pod
-
-```bash
-kubectl delete pod <pod-name> -n dev
-```
-
-Example:
-
-```bash
-kubectl delete pod nginx-deployment-68cd4c497b-77cgz -n dev
-```
-
-Deployment automatically creates replacement Pod.
-
----
-
-## Watch New Pod
-
-```bash
-kubectl get pods -n dev -w
-```
-
-Observe new Pod creation.
-
----
-
-# Scaling
-
-## Scale Up
-
-```bash
-kubectl scale deployment nginx-deployment --replicas=5 -n dev
-```
-
-Creates additional Pods.
-
----
-
-## Scale Down
-
-```bash
-kubectl scale deployment nginx-deployment --replicas=2 -n dev
-```
-
-Terminates extra Pods.
-
----
-
-## Verify Deployment
-
-```bash
-kubectl get deployment nginx-deployment -n dev
-```
-
----
-
-# Rolling Updates
-
-## Update Image
-
-```bash
-kubectl set image deployment/nginx-deployment nginx=nginx:1.25 -n dev
-```
-
-Triggers rolling update.
-
----
-
-## Watch Rollout
-
-```bash
-kubectl rollout status deployment/nginx-deployment -n dev
-```
-
-Shows rollout progress.
-
----
-
-## Rollout History
-
-```bash
-kubectl rollout history deployment/nginx-deployment -n dev
-```
-
-Displays revisions.
-
----
-
-## Rollback
-
-```bash
-kubectl rollout undo deployment/nginx-deployment -n dev
-```
-
-Restores previous version.
-
----
-
-## Verify Image
-
-```bash
-kubectl describe deployment nginx-deployment -n dev | grep Image
-```
-
-Output:
+### Internal Flow
 
 ```text
-Image: nginx:1.24
+Deployment
+     ↓
+ReplicaSet
+     ↓
+Pods
 ```
-
----
-
-# Cleanup
-
-## Delete Deployment
-
-```bash
-kubectl delete deployment nginx-deployment -n dev
-```
-
----
-
-## Delete Pods
-
-```bash
-kubectl delete pod nginx-dev -n dev
-kubectl delete pod nginx-staging -n staging
-```
-
----
-
-## Delete Namespaces
-
-```bash
-kubectl delete namespace dev staging production
-```
-
-Deletes all resources inside namespaces.
-
----
-
-# Verification
-
-## List Namespaces
-
-```bash
-kubectl get namespaces
-```
-
----
-
-## List All Pods
-
-```bash
-kubectl get pods -A
-```
-
-Verify resources are removed.
-
----
-
-## Kubernetes Deployment
 
 ---
 
@@ -236,7 +48,7 @@ kubectl get deployments -n dev
 
 ### Explanation
 
-Displays all Deployments running inside the `dev` namespace.
+Displays all Deployments running in the `dev` namespace.
 
 ### Shows
 
@@ -262,7 +74,7 @@ kubectl get deployment nginx-deployment -n dev
 
 ### Explanation
 
-Displays information about a specific Deployment.
+Displays details for a specific Deployment.
 
 ---
 
@@ -281,14 +93,52 @@ Displays complete Deployment information.
 * desired replicas
 * available replicas
 * rollout strategy
-* events
 * image version
+* events
 * conditions
 
 ### Common Usage
 
 ```text
 Used to troubleshoot Deployment issues.
+```
+
+---
+
+## View Deployment YAML
+
+```bash
+kubectl get deployment nginx-deployment -n dev -o yaml
+```
+
+### Explanation
+
+Displays the live Deployment manifest stored in Kubernetes.
+
+### Useful For
+
+* debugging
+* backup
+* understanding Deployment structure
+* comparing desired vs actual state
+
+---
+
+## Explain Deployment Schema
+
+```bash
+kubectl explain deployment
+```
+
+### Explanation
+
+Shows Deployment API schema and field information.
+
+### Examples
+
+```bash
+kubectl explain deployment.spec
+kubectl explain deployment.spec.template
 ```
 
 ---
@@ -303,13 +153,13 @@ kubectl get rs -n dev
 
 ### Explanation
 
-Displays ReplicaSets created and managed by Deployments.
+Displays ReplicaSets managed by Deployments.
 
-### ReplicaSet Purpose
+### Purpose
 
 ```text
-Ensures the desired number of Pod replicas
-are always running.
+ReplicaSets ensure the desired number
+of Pod replicas are always running.
 ```
 
 ### Example Output
@@ -343,20 +193,20 @@ kubectl get pods -n dev -w
 
 ### Explanation
 
-Continuously watches Pod changes.
+Continuously watches Pod status changes.
 
 ### Useful For
 
+* self-healing
 * scaling
 * rollouts
-* self-healing
 * debugging
 
 ---
 
 # 🔄 Self-Healing
 
-## Delete Pod
+## Delete a Deployment Pod
 
 ```bash
 kubectl delete pod <pod-name> -n dev
@@ -367,10 +217,6 @@ kubectl delete pod <pod-name> -n dev
 ```bash
 kubectl delete pod nginx-deployment-68cd4c497b-77cgz -n dev
 ```
-
-### Explanation
-
-Deletes a Deployment-managed Pod.
 
 ### What Happens Internally
 
@@ -402,7 +248,7 @@ kubectl scale deployment nginx-deployment --replicas=5 -n dev
 
 ### Explanation
 
-Increases Deployment replicas from current count to 5.
+Increases the number of Pod replicas.
 
 ### Result
 
@@ -420,7 +266,7 @@ kubectl scale deployment nginx-deployment --replicas=2 -n dev
 
 ### Explanation
 
-Reduces Deployment replicas to 2.
+Reduces the number of Pod replicas.
 
 ### Result
 
@@ -443,7 +289,7 @@ ReplicaSet removes 3 Pods
 
 # 🚀 Rolling Updates
 
-## Update Container Image
+## Update Deployment Image
 
 ```bash
 kubectl set image deployment/nginx-deployment nginx=nginx:1.25 -n dev
@@ -451,17 +297,17 @@ kubectl set image deployment/nginx-deployment nginx=nginx:1.25 -n dev
 
 ### Explanation
 
-Updates Deployment container image.
+Updates the container image used by the Deployment.
 
 ### Result
 
 ```text
-Triggers Rolling Update.
+Triggers a Rolling Update.
 ```
 
 ---
 
-## Watch Rollout Progress
+## Watch Rollout Status
 
 ```bash
 kubectl rollout status deployment/nginx-deployment -n dev
@@ -469,7 +315,7 @@ kubectl rollout status deployment/nginx-deployment -n dev
 
 ### Explanation
 
-Displays rollout progress until update completes.
+Displays rollout progress until the update completes.
 
 ### Example Output
 
@@ -487,7 +333,7 @@ kubectl rollout history deployment/nginx-deployment -n dev
 
 ### Explanation
 
-Shows Deployment revisions.
+Shows Deployment revision history.
 
 ### Example Output
 
@@ -509,7 +355,7 @@ kubectl rollout undo deployment/nginx-deployment -n dev
 
 ### Explanation
 
-Rolls Deployment back to previous revision.
+Rolls the Deployment back to the previous revision.
 
 ### Example
 
@@ -523,7 +369,7 @@ nginx:1.24
 
 ---
 
-## Verify Current Image
+## Verify Active Image
 
 ```bash
 kubectl describe deployment nginx-deployment -n dev | grep Image
@@ -537,7 +383,7 @@ Image: nginx:1.24
 
 ### Explanation
 
-Confirms image version after rollback.
+Confirms the image version currently used by the Deployment.
 
 ---
 
@@ -551,7 +397,7 @@ kubectl get events -n dev --sort-by=.metadata.creationTimestamp
 
 ### Explanation
 
-Displays events in chronological order.
+Displays namespace events in chronological order.
 
 ### Useful For
 
@@ -559,7 +405,7 @@ Displays events in chronological order.
 * scheduling
 * image pulling
 * scaling
-* rollouts
+* rollout troubleshooting
 
 ### Common Events
 
@@ -585,11 +431,24 @@ kubectl delete deployment nginx-deployment -n dev
 
 ### Explanation
 
-Deletes Deployment and its ReplicaSets/Pods.
+Deletes the Deployment and its managed ReplicaSets and Pods.
 
 ---
 
-## Delete Namespace
+## Delete Application Pods
+
+```bash
+kubectl delete pod nginx-dev -n dev
+kubectl delete pod nginx-staging -n staging
+```
+
+### Explanation
+
+Deletes standalone Pods created for testing.
+
+---
+
+## Delete Namespaces
 
 ```bash
 kubectl delete namespace dev staging production
@@ -606,39 +465,21 @@ Namespace deletion removes everything
 inside that namespace.
 ```
 
-## View Deployment YAML
-
-```bash
-kubectl get deployment nginx-deployment -n dev -o yaml
-```
-### Explanation
-
-Displays the live Deployment manifest stored in Kubernetes.
-
-### Useful For
-- debugging
-- backup
-- understanding Deployment structure
-- comparing desired vs actual state
-
 ---
 
-## Explain Deployment Schema
+# 🌍 Verification
+
+## List Namespaces
 
 ```bash
-kubectl explain deployment
+kubectl get namespaces
 ```
+
 ### Explanation
 
-Shows Deployment API fields and schema information.
-
-### Example
-- kubectl explain deployment.spec
-- kubectl explain deployment.spec.template
+Verifies namespace cleanup.
 
 ---
-
-# 🌍 Cluster-Wide Verification
 
 ## View All Pods
 
@@ -648,7 +489,7 @@ kubectl get pods -A
 
 ### Explanation
 
-Displays Pods across every namespace.
+Displays Pods across all namespaces.
 
 ### Useful For
 
@@ -708,178 +549,4 @@ Pods
 Containers
 ```
 
-
-## Watch Rollout Status
-
-```bash
-kubectl rollout status deployment/nginx-deployment -n dev
-````
-
-### Explanation
-
-Displays the progress of a Deployment rollout until it completes.
-
-### Example Output
-
-```text
-deployment "nginx-deployment" successfully rolled out
-```
-
----
-
-## View Rollout History
-
-```bash
-kubectl rollout history deployment/nginx-deployment -n dev
-```
-
-### Explanation
-
-Shows all Deployment revisions created during updates.
-
-### Example Output
-
-```text
-REVISION  CHANGE-CAUSE
-1         <none>
-2         <none>
-```
-
----
-
-## Get Specific Deployment
-
-```bash
-kubectl get deployment nginx-deployment -n dev
-```
-
-### Explanation
-
-Displays information about a specific Deployment.
-
-### Example Output
-
-```text
-NAME               READY   UP-TO-DATE   AVAILABLE   AGE
-nginx-deployment   3/3     3            3           10m
-```
-
----
-
-## List Deployments
-
-```bash
-kubectl get deployments -n dev
-```
-
-### Explanation
-
-Lists all Deployments in the dev namespace.
-
-### Shows
-
-* READY
-* UP-TO-DATE
-* AVAILABLE
-* AGE
-
----
-
-## List ReplicaSets
-
-```bash
-kubectl get rs -n dev
-```
-
-### Explanation
-
-Displays ReplicaSets managed by Deployments.
-
-### Purpose
-
-```text
-ReplicaSets ensure the desired number
-of Pod replicas are running.
-```
-
----
-
-## Watch Pods in Real-Time
-
-```bash
-kubectl get pods -n dev -w
-```
-
-### Explanation
-
-Continuously watches Pod status changes.
-
-### Useful For
-
-* self-healing
-* scaling
-* rollouts
-* debugging
-
----
-
-## View Namespace Events
-
-```bash
-kubectl get events -n dev --sort-by=.metadata.creationTimestamp
-```
-
-### Explanation
-
-Displays events in chronological order.
-
-### Useful For
-
-* Pod creation
-* image pulls
-* scheduling
-* scaling operations
-* rollout troubleshooting
-
-### Common Events
-
-```text
-Scheduled
-Pulling
-Pulled
-Created
-Started
-ScalingReplicaSet
-SuccessfulCreate
-```
-
----
-
-## Verify Deployment Image
-
-```bash
-kubectl describe deployment nginx-deployment -n dev | grep Image
-```
-
-### Explanation
-
-Displays the image currently used by the Deployment.
-
-### Example Output
-
-```text
-Image: nginx:1.24
-```
-
-### Common Usage
-
-```text
-Used after rolling updates
-and rollbacks to verify
-the active image version.
-```
-
-```
-
-This matches the exact style used throughout your Day 50–52 notes: **Command → Explanation → Example Output → Usage/Purpose**.
-```
+This version preserves all Day 52 learning and commands, removes duplicates, and keeps the same structure/style as your Day 50–51 notes for GitHub.
