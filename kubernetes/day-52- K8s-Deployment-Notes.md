@@ -1,6 +1,4 @@
-# Kubernetes Deployment Master Notes
 
----
 # 1. What is a Kubernetes Deployment?
   
 #  Explanation
@@ -1645,8 +1643,6 @@ Runtime?
 ```
 
 That mindset dramatically speeds up troubleshooting.
-
-# Kubernetes Deployment Master Notes
 
 #  Troubleshooting Methodology
 
