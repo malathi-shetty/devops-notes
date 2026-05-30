@@ -1,19 +1,3 @@
-Yes. Your current version has **a lot of duplication** because the same commands appear 2–3 times:
-
-* `kubectl get deployments -n dev`
-* `kubectl get deployment nginx-deployment -n dev`
-* `kubectl get rs -n dev`
-* `kubectl get pods -n dev -w`
-* `kubectl rollout status`
-* `kubectl rollout history`
-* `kubectl describe deployment ... | grep Image`
-
-are all repeated later.
-
-For GitHub notes, it's cleaner to keep **one command → one explanation**.
-
----
-
 # Day 52 - Kubernetes Deployments
 
 ## Create Deployment
@@ -549,4 +533,4 @@ Pods
 Containers
 ```
 
-This version preserves all Day 52 learning and commands, removes duplicates, and keeps the same structure/style as your Day 50–51 notes for GitHub.
+
