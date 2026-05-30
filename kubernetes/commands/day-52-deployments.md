@@ -222,7 +222,7 @@ Verify resources are removed.
 
 ---
 
-# 🚀 Kubernetes Deployments — Day 52 Commands Sheet
+## Kubernetes Deployment
 
 ---
 
@@ -606,6 +606,36 @@ Namespace deletion removes everything
 inside that namespace.
 ```
 
+## View Deployment YAML
+
+```bash
+kubectl get deployment nginx-deployment -n dev -o yaml
+```
+### Explanation
+
+Displays the live Deployment manifest stored in Kubernetes.
+
+### Useful For
+- debugging
+- backup
+- understanding Deployment structure
+- comparing desired vs actual state
+
+---
+
+## Explain Deployment Schema
+
+```bash
+kubectl explain deployment
+```
+### Explanation
+
+Shows Deployment API fields and schema information.
+
+### Example
+- kubectl explain deployment.spec
+- kubectl explain deployment.spec.template
+
 ---
 
 # 🌍 Cluster-Wide Verification
@@ -678,3 +708,178 @@ Pods
 Containers
 ```
 
+
+## Watch Rollout Status
+
+```bash
+kubectl rollout status deployment/nginx-deployment -n dev
+````
+
+### Explanation
+
+Displays the progress of a Deployment rollout until it completes.
+
+### Example Output
+
+```text
+deployment "nginx-deployment" successfully rolled out
+```
+
+---
+
+## View Rollout History
+
+```bash
+kubectl rollout history deployment/nginx-deployment -n dev
+```
+
+### Explanation
+
+Shows all Deployment revisions created during updates.
+
+### Example Output
+
+```text
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+```
+
+---
+
+## Get Specific Deployment
+
+```bash
+kubectl get deployment nginx-deployment -n dev
+```
+
+### Explanation
+
+Displays information about a specific Deployment.
+
+### Example Output
+
+```text
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   3/3     3            3           10m
+```
+
+---
+
+## List Deployments
+
+```bash
+kubectl get deployments -n dev
+```
+
+### Explanation
+
+Lists all Deployments in the dev namespace.
+
+### Shows
+
+* READY
+* UP-TO-DATE
+* AVAILABLE
+* AGE
+
+---
+
+## List ReplicaSets
+
+```bash
+kubectl get rs -n dev
+```
+
+### Explanation
+
+Displays ReplicaSets managed by Deployments.
+
+### Purpose
+
+```text
+ReplicaSets ensure the desired number
+of Pod replicas are running.
+```
+
+---
+
+## Watch Pods in Real-Time
+
+```bash
+kubectl get pods -n dev -w
+```
+
+### Explanation
+
+Continuously watches Pod status changes.
+
+### Useful For
+
+* self-healing
+* scaling
+* rollouts
+* debugging
+
+---
+
+## View Namespace Events
+
+```bash
+kubectl get events -n dev --sort-by=.metadata.creationTimestamp
+```
+
+### Explanation
+
+Displays events in chronological order.
+
+### Useful For
+
+* Pod creation
+* image pulls
+* scheduling
+* scaling operations
+* rollout troubleshooting
+
+### Common Events
+
+```text
+Scheduled
+Pulling
+Pulled
+Created
+Started
+ScalingReplicaSet
+SuccessfulCreate
+```
+
+---
+
+## Verify Deployment Image
+
+```bash
+kubectl describe deployment nginx-deployment -n dev | grep Image
+```
+
+### Explanation
+
+Displays the image currently used by the Deployment.
+
+### Example Output
+
+```text
+Image: nginx:1.24
+```
+
+### Common Usage
+
+```text
+Used after rolling updates
+and rollbacks to verify
+the active image version.
+```
+
+```
+
+This matches the exact style used throughout your Day 50–52 notes: **Command → Explanation → Example Output → Usage/Purpose**.
+```
