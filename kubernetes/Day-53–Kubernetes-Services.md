@@ -3284,6 +3284,7 @@ EndpointSlices
 Pods
 ```
 
+Note:
 Modern Kubernetes stores backend endpoint information in EndpointSlice resources.
 
 ---
@@ -3337,7 +3338,7 @@ Actually:
 ```text
 Service
  ↓
-Endpoints
+EndpointSlice
  ↓
 Pods
 ```
@@ -8452,15 +8453,19 @@ Example:
 
 ```text
 Deployment
-   ↓
+↓
 Pods
-   ↓
+↓
 Labels
-   ↓
-Service selector
-   ↓
+↓
+Selectors
+↓
+Service
+↓
 Endpoints created
-   ↓
+↓
+DNS
+↓
 Traffic routed
 ```
 
@@ -9337,13 +9342,27 @@ web-app-clusterip   ClusterIP   10.96.100.50
 
 The ClusterIP remains stable even when Pods change.
 
+---
+
 | Field         | Purpose                                      |
 | ------------- | -------------------------------------------- |
 | containerPort | Port application listens on inside container |
 | targetPort    | Service forwards traffic here                |
 | port          | Service exposes this port                    |
 
-
+Example:
+```bash
+containerPort: 8080
+targetPort: 8080
+port: 80
+```
+Meaning:
+```bash
+User → Service:80
+            ↓
+         Pod:8080
+ ```
+        
 ---
 
 # Challenge Task 3: Test ClusterIP Connectivity
@@ -10563,6 +10582,9 @@ kube-proxy
 
 running on each node.
 
+Note:
+> kube-proxy programs the networking rules that allow Service IPs to forward traffic to Pods.
+
 ---
 
 # Responsibilities of kube-proxy
@@ -11459,6 +11481,22 @@ kubectl expose deployment web-app \
 
 Kubernetes generates the Service manifest for you.
 
+---
+
+```bash
+Service Not Working?
+kubectl get svc
+kubectl get endpoints
+kubectl get pods --show-labels
+```
+If endpoints show:
+```bash
+<none>
+```
+then:
+```bash
+Selector does not match Pod labels.
+```
 ---
 
 # Best Practices
