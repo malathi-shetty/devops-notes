@@ -3454,4 +3454,1417 @@ my_set = {1,2}
 my_dict = {"name":"Shubham"}
 ```
 
+**********
+
+# 04_file_handling.py
+
+
+
+## What is File Handling?
+
+File Handling allows Python to:
+
+* Read data from files
+* Write data to files
+* Append data to files
+* Store data permanently
+
+Without files:
+
+```text
+Program Runs
+↓
+Program Ends
+↓
+Data Lost
+```
+
+With files:
+
+```text
+Program Runs
+↓
+Data Saved In File
+↓
+Program Ends
+↓
+Data Still Exists
+```
+
+---
+
+# Why DevOps Engineers Use File Handling
+
+Common examples:
+
+### Read Configuration Files
+
+```text
+config.txt
+```
+
+Example:
+
+```text
+server=prod
+port=8080
+```
+
+---
+
+### Read Log Files
+
+```text
+app.log
+```
+
+Example:
+
+```text
+ERROR
+WARNING
+INFO
+```
+
+---
+
+### Store Reports
+
+```text
+report.txt
+```
+
+Store automation results.
+
+---
+
+### Store API Responses
+
+Later in Day-02:
+
+```python
+response.json()
+```
+
+can be saved into:
+
+```text
+output.json
+```
+
+using file handling.
+
+---
+
+# File Handling Lifecycle
+
+Every file operation follows:
+
+```text
+OPEN
+ ↓
+READ / WRITE / APPEND
+ ↓
+CLOSE
+```
+
+Example:
+
+```python
+file = open("demo.txt")
+print(file.read())
+file.close()
+```
+
+---
+
+# Opening a File
+
+Code:
+
+```python
+file = open("demo.txt")
+```
+
+Equivalent to:
+
+```python
+file = open("demo.txt","r")
+```
+
+Default mode is:
+
+```text
+Read Mode
+```
+
+---
+
+# Reading a File
+
+Suppose:
+
+```text
+demo.txt
+
+hello dosto
+```
+
+Code:
+
+```python
+print(file.read())
+```
+
+Output:
+
+```text
+hello dosto
+```
+
+---
+
+# Read Mode ("r")
+
+Example:
+
+```python
+file = open("demo.txt","r")
+```
+
+Allowed:
+
+✅ Read
+
+❌ Write
+
+---
+
+## Common Error
+
+Wrong:
+
+```python
+file = open("demo.txt")
+file.write("Hello")
+```
+
+Error:
+
+```text
+io.UnsupportedOperation: not writable
+```
+
+Reason:
+
+```text
+File opened in Read Mode.
+```
+
+---
+
+# Write Mode ("w")
+
+Example:
+
+```python
+file = open("demo.txt","w")
+```
+
+Purpose:
+
+```text
+Write new content
+```
+
+Allowed:
+
+✅ Write
+
+❌ Existing content preserved
+
+````
+
+---
+
+## Important Behavior
+
+Before:
+
+```text
+demo.txt
+
+Junoon
+````
+
+Code:
+
+```python
+file = open("demo.txt","w")
+```
+
+Immediately:
+
+```text
+demo.txt
+
+(empty)
+```
+
+Python clears existing content.
+
+---
+
+Then:
+
+```python
+file.write("Testing file handling in Python")
+```
+
+File becomes:
+
+```text
+Testing file handling in Python
+```
+
+---
+
+## Memory Trick
+
+```text
+w = Wipe + Write
+```
+
+Meaning:
+
+```text
+Delete old content
+Write new content
+```
+
+---
+
+# Append Mode ("a")
+
+Example:
+
+```python
+file = open("config.txt","a")
+```
+
+Purpose:
+
+```text
+Keep old content
+Add new content at end
+```
+
+---
+
+Before:
+
+```text
+server=prod
+port=8080
+```
+
+Code:
+
+```python
+file.write("\napp.log.level=DEBUG")
+```
+
+After:
+
+```text
+server=prod
+port=8080
+app.log.level=DEBUG
+```
+
+---
+
+# Running Again
+
+Append mode adds again.
+
+After second run:
+
+```text
+server=prod
+port=8080
+app.log.level=DEBUG
+app.log.level=DEBUG
+```
+
+---
+
+After third run:
+
+```text
+server=prod
+port=8080
+app.log.level=DEBUG
+app.log.level=DEBUG
+app.log.level=DEBUG
+```
+
+Append never removes data.
+
+---
+
+## Memory Trick
+
+```text
+a = Add
+```
+
+Meaning:
+
+```text
+Keep old content
+Add new content
+```
+
+---
+
+# Understanding Your Observation
+
+You observed:
+
+Run 1:
+
+```text
+Junoon
+```
+
+Run 2:
+
+```text
+Testing file handling in Python
+```
+
+You thought there might be lag.
+
+Actually:
+
+```text
+No lag.
+```
+
+It happened because of execution order.
+
+---
+
+## Run 1
+
+Before:
+
+```text
+demo.txt
+
+Junoon
+```
+
+Python executes:
+
+```python
+print(file.read())
+```
+
+Output:
+
+```text
+Junoon
+```
+
+Then:
+
+```python
+open("demo.txt","w")
+```
+
+overwrites file:
+
+```text
+Testing file handling in Python
+```
+
+Program ends.
+
+---
+
+## Run 2
+
+Now file already contains:
+
+```text
+Testing file handling in Python
+```
+
+Python reads it.
+
+Output:
+
+```text
+Testing file handling in Python
+```
+
+---
+
+# Important Lesson
+
+Python executes code sequentially:
+
+```text
+Line 1
+↓
+Line 2
+↓
+Line 3
+↓
+Line 4
+```
+
+Order matters.
+
+---
+
+# close()
+
+Example:
+
+```python
+file.close()
+```
+
+Purpose:
+
+```text
+Release file resources
+Tell operating system work is finished
+```
+
+Always close files after use.
+
+---
+
+# Better Modern Method
+
+Instead of:
+
+```python
+file = open("demo.txt")
+print(file.read())
+file.close()
+```
+
+Use:
+
+```python
+with open("demo.txt") as file:
+    print(file.read())
+```
+
+Python automatically closes the file.
+
+We'll learn this later.
+
+---
+
+# Internal Flow
+
+```text
+demo.txt
+     │
+     ▼
+open()
+     │
+     ▼
+File Object
+     │
+     ├── read()
+     ├── write()
+     ├── close()
+```
+
+---
+
+# Real DevOps Use Cases
+
+### Read Configuration
+
+```python
+open("config.txt")
+```
+
+Read:
+
+```text
+server=prod
+port=8080
+```
+
+---
+
+### Read Logs
+
+```python
+open("app.log")
+```
+
+Analyze application failures.
+
+---
+
+### Store Reports
+
+```python
+open("report.txt","w")
+```
+
+Write automation reports.
+
+---
+
+### Store API Data
+
+```python
+open("output.json","w")
+```
+
+Save API responses.
+
+---
+
+
+
+## Discovery 1
+
+```python
+open("demo.txt")
+```
+
+means:
+
+```python
+open("demo.txt","r")
+```
+
+Default mode is Read Mode.
+
+---
+
+## Discovery 2
+
+This causes error:
+
+```python
+file = open("demo.txt")
+file.write("Hello")
+```
+
+Error:
+
+```text
+io.UnsupportedOperation: not writable
+```
+
+Reason:
+
+```text
+File opened in Read Mode.
+```
+
+---
+
+## Discovery 3
+
+Write Mode:
+
+```python
+open("demo.txt","w")
+```
+
+deletes existing content.
+
+---
+
+## Discovery 4
+
+Memory Trick:
+
+```text
+w = Wipe + Write
+```
+
+---
+
+## Discovery 5
+
+Append Mode:
+
+```python
+open("config.txt","a")
+```
+
+preserves old content.
+
+---
+
+## Discovery 6
+
+Memory Trick:
+
+```text
+a = Add
+```
+
+---
+
+## Discovery 7
+
+Every time program runs:
+
+```python
+file.write("\napp.log.level=DEBUG")
+```
+
+in Append Mode,
+
+a new line gets added.
+
+This is why multiple DEBUG lines appeared.
+
+---
+
+## Discovery 8
+
+There was no lag.
+
+Python simply executed:
+
+```text
+Read First
+Write Later
+```
+
+So old content was displayed during that run.
+
+---
+
+## Discovery 9
+
+On the next run:
+
+```text
+Previously written content
+becomes visible.
+```
+
+---
+
+## Discovery 10
+
+Order of execution matters.
+
+Python runs code:
+
+```text
+Top
+↓
+Bottom
+```
+
+one line at a time.
+
+---
+
+## Discovery 11
+
+Always close files:
+
+```python
+file.close()
+```
+
+after use.
+
+---
+
+
+
+## File Handling Lifecycle
+
+```text
+OPEN
+ ↓
+READ / WRITE / APPEND
+ ↓
+CLOSE
+```
+
+---
+
+## Open File
+
+```python
+file = open("demo.txt")
+```
+
+Default:
+
+```python
+open("demo.txt","r")
+```
+
+---
+
+## Read File
+
+```python
+file.read()
+```
+
+---
+
+## Write File
+
+```python
+file = open("demo.txt","w")
+file.write("Hello")
+```
+
+Effect:
+
+```text
+Deletes old content
+Writes new content
+```
+
+Memory Trick:
+
+```text
+w = Wipe + Write
+```
+
+---
+
+## Append File
+
+```python
+file = open("demo.txt","a")
+file.write("Hello")
+```
+
+Effect:
+
+```text
+Keeps old content
+Adds new content
+```
+
+Memory Trick:
+
+```text
+a = Add
+```
+
+---
+
+## Close File
+
+```python
+file.close()
+```
+
+---
+
+## Common Error
+
+```python
+file = open("demo.txt")
+file.write("Hello")
+```
+
+Error:
+
+```text
+io.UnsupportedOperation: not writable
+```
+
+Reason:
+
+```text
+Read Mode does not allow writing.
+```
+
+---
+
+## Common Modes
+
+| Mode | Meaning | Existing Data |
+| ---- | ------- | ------------- |
+| r    | Read    | Preserved     |
+| w    | Write   | Deleted       |
+| a    | Append  | Preserved     |
+
+---
+
+##  Questions
+
+# Python File Handling  Questions & Answers
+
+---
+
+# 1. What is File Handling in Python?
+
+File Handling is the process of:
+
+* Creating files
+* Reading files
+* Writing files
+* Updating files
+* Appending data to files
+
+Python provides built-in functions to work with files stored on disk.
+
+Example:
+
+```python
+file = open("demo.txt")
+print(file.read())
+file.close()
+```
+
+###  Answer
+
+File Handling is used to read, write, update, and manage data stored in files.
+
+---
+
+# 2. What is the purpose of open()?
+
+`open()` is used to open a file before performing operations on it.
+
+Syntax:
+
+```python
+open(filename, mode)
+```
+
+Example:
+
+```python
+file = open("demo.txt", "r")
+```
+
+Here:
+
+```python
+demo.txt → filename
+r        → mode
+```
+
+###  Answer
+
+`open()` establishes a connection between the Python program and the file so that data can be read or written.
+
+---
+
+# 3. What is the default file mode?
+
+If no mode is specified, Python uses:
+
+```python
+r
+```
+
+Example:
+
+```python
+file = open("demo.txt")
+```
+
+Same as:
+
+```python
+file = open("demo.txt", "r")
+```
+
+###  Answer
+
+The default file mode is `r` (Read Mode).
+
+---
+
+# 4. Difference between r, w, and a?
+
+| Mode | Meaning | File Must Exist? | Old Content |
+| ---- | ------- | ---------------- | ----------- |
+| r    | Read    | Yes              | Preserved   |
+| w    | Write   | No               | Deleted     |
+| a    | Append  | No               | Preserved   |
+
+---
+
+## Read Mode
+
+```python
+file = open("demo.txt", "r")
+```
+
+Can read only.
+
+---
+
+## Write Mode
+
+```python
+file = open("demo.txt", "w")
+```
+
+Deletes old content and writes new content.
+
+---
+
+## Append Mode
+
+```python
+file = open("demo.txt", "a")
+```
+
+Adds new data at the end.
+
+###  Answer
+
+* `r` = Read existing data
+* `w` = Overwrite existing data
+* `a` = Add data without deleting existing content
+
+---
+
+# 5. Why did file.write() fail in Read Mode?
+
+Example:
+
+```python
+file = open("demo.txt", "r")
+
+file.write("Hello")
+```
+
+Output:
+
+```python
+UnsupportedOperation: not writable
+```
+
+Reason:
+
+Read Mode only allows reading.
+
+###  Answer
+
+`file.write()` fails in Read Mode because the file is opened as read-only.
+
+---
+
+# 6. What happens when a file is opened in Write Mode?
+
+Example:
+
+```python
+file = open("demo.txt", "w")
+```
+
+Python immediately clears the file contents.
+
+Before:
+
+```text
+Hello
+World
+```
+
+After opening with `"w"`:
+
+```text
+(empty)
+```
+
+Then new content is written.
+
+###  Answer
+
+Write Mode truncates (erases) existing content before writing new data.
+
+---
+
+# 7. What happens when a file is opened in Append Mode?
+
+Example:
+
+```python
+file = open("demo.txt", "a")
+
+file.write("DEBUG\n")
+```
+
+Existing content remains.
+
+Before:
+
+```text
+Server Started
+```
+
+After:
+
+```text
+Server Started
+DEBUG
+```
+
+###  Answer
+
+Append Mode preserves existing content and adds new data to the end of the file.
+
+---
+
+# 8. Why did multiple DEBUG lines appear?
+
+Suppose:
+
+```python
+file = open("demo.txt", "a")
+
+file.write("DEBUG\n")
+```
+
+Every run adds another line.
+
+Run 1:
+
+```text
+DEBUG
+```
+
+Run 2:
+
+```text
+DEBUG
+DEBUG
+```
+
+Run 3:
+
+```text
+DEBUG
+DEBUG
+DEBUG
+```
+
+Because Append Mode never removes existing content.
+
+###  Answer
+
+Multiple DEBUG lines appeared because Append Mode adds data to the end every time the program runs.
+
+---
+
+# 9. Why was old content printed during the first run?
+
+Example:
+
+```python
+file = open("demo.txt", "r")
+
+print(file.read())
+```
+
+If the file already contains:
+
+```text
+Hello
+World
+DEBUG
+```
+
+Output:
+
+```text
+Hello
+World
+DEBUG
+```
+
+Python reads whatever already exists.
+
+###  Answer
+
+Old content was printed because Read Mode reads the file's current contents, including data written during previous runs.
+
+---
+
+# 10. Why is file.close() important?
+
+Example:
+
+```python
+file = open("demo.txt", "w")
+
+file.write("Hello")
+
+file.close()
+```
+
+Benefits:
+
+* Saves pending changes
+* Releases system resources
+* Prevents file corruption
+* Prevents file locks
+
+###  Answer
+
+`file.close()` ensures data is properly saved and releases the file resource.
+
+---
+
+# 11. What is the modern alternative to open() + close()?
+
+Use:
+
+```python
+with open("demo.txt", "r") as file:
+    print(file.read())
+```
+
+No need:
+
+```python
+file.close()
+```
+
+Python automatically closes the file.
+
+---
+
+### Why use with?
+
+* Cleaner code
+* Safer
+* Automatically closes file
+* Preferred in production code
+
+###  Answer
+
+The modern approach is the `with open()` statement, which automatically closes the file after use.
+
+---
+
+# 12. How is file handling used in DevOps?
+
+File handling is everywhere in DevOps.
+
+### Log Processing
+
+```python
+with open("app.log", "r") as file:
+    logs = file.read()
+```
+
+---
+
+### Configuration Files
+
+```python
+config.yaml
+```
+
+Read configuration values.
+
+---
+
+### Server Inventories
+
+```text
+server1
+server2
+server3
+```
+
+Read server lists.
+
+---
+
+### Automation Reports
+
+Store automation results.
+
+```text
+PASS
+FAIL
+PASS
+```
+
+---
+
+### CI/CD Pipelines
+
+Read and generate reports.
+
+###  Answer
+
+File handling is used in DevOps for logs, configuration files, inventory files, reports, backups, and automation outputs.
+
+---
+
+# 13. How can API responses be stored in files?
+
+Example:
+
+```python
+response = """
+{
+    "name":"Shubham",
+    "city":"Mumbai"
+}
+"""
+
+with open("response.json", "w") as file:
+    file.write(response)
+```
+
+Stored as:
+
+```json
+{
+    "name":"Shubham",
+    "city":"Mumbai"
+}
+```
+
+---
+
+### Real-world Usage
+
+* Save API responses
+* Archive logs
+* Store reports
+* Debug failures
+* Compare old vs new responses
+
+###  Answer
+
+API responses can be written to text, JSON, CSV, or log files using `write()` and file handling operations.
+
+---
+
+# Quick Memory Summary
+
+```text
+r = Read
+w = Write (Overwrite)
+a = Append (Add at End)
+
+open()  -> Open File
+read()  -> Read Content
+write() -> Write Content
+close() -> Close File
+
+with open() -> Preferred Modern Approach
+```
+
+---
+
+# Common  Errors
+
+### Key Error #1
+
+```python
+file.write()
+```
+
+in
+
+```python
+open("demo.txt", "r")
+```
+
+Result:
+
+```text
+UnsupportedOperation: not writable
+```
+
+---
+
+### Key Error #2
+
+```python
+open("demo.txt", "w")
+```
+
+accidentally deleting content.
+
+---
+
+### Key Error #3
+
+```python
+open("demo.txt", "a")
+```
+
+creating repeated log entries.
+
+---
+
+# Quick Revision (1-Minute)
+
+| Question                 | Short Answer                        |
+| ------------------------ | ----------------------------------- |
+| What is File Handling?   | Reading/writing files               |
+| Purpose of open()?       | Open a file                         |
+| Default mode?            | `r`                                 |
+| `r` mode?                | Read only                           |
+| `w` mode?                | Overwrite file                      |
+| `a` mode?                | Append data                         |
+| Why write() failed?      | File opened in Read Mode            |
+| Why DEBUG repeated?      | Append Mode adds every run          |
+| Why old content printed? | File already contained data         |
+| Why close()?             | Save changes and release resources  |
+| Modern alternative?      | `with open()`                       |
+| DevOps usage?            | Logs, configs, reports, inventories |
+| API responses?           | Store in JSON/TXT/CSV files         |
+
+###  One-Liner
+
+> "File Handling in Python allows programs to read, write, append, and manage files. It is heavily used in DevOps for logs, configuration files, inventory management, reports, and storing API responses, with `with open()` being the preferred modern approach."
+
+
+---
+
+### Quick Memory Summary
+
+```text
+r = Read
+
+w = Wipe + Write
+
+a = Add
+
+close() = Finish Work
+```
+
+This file taught three core concepts you'll use repeatedly in DevOps automation:
+
+```text
+Read Files
+Write Files
+Append Files
+```
+
+These will later be combined with APIs, logs, configuration files, and automation reports.
 
