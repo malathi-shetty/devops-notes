@@ -550,25 +550,26 @@ Therefore, understanding Dictionaries is essential before learning APIs.
 Dictionary stores data in Key-Value pairs.
 
 Syntax:
-
+```bash
 info = {
     "name": "Shubham",
     "city": "Pune"
 }
-
+```
 Access Value:
-
+```bash
 info["city"]
-
+```
 Output:
+```bash
 Pune
-
+```
 Safe Access:
-
+```bash
 info.get("city")
-
+```
 Difference:
-
+```bash
 info["country"]
 → KeyError
 
@@ -577,24 +578,24 @@ info.get("country")
 
 info.get("country", "Not Found")
 → Not Found
-
+```
 Add/Update:
-
+```bash
 info.update({"channel":"TrainWithShubham"})
-
+```
 Loop Through Dictionary:
-
+```bash
 for key, value in info.items():
     print(key, value)
-
+```
 Useful Methods:
-
+```bash
 get()
 items()
 keys()
 values()
 update()
-
+```
 Why Important?
 
 Most API JSON responses become Python Dictionaries.
@@ -607,53 +608,53 @@ Mistakes I Made
 1. IndentationError
 
 Wrong:
-
+```bash
 for key,value in info.items():
 
 info["country"]
-
+```
 Reason:
 Python expected code inside the loop.
 
 Correct:
-
+```bash
 for key,value in info.items():
     print(key,value)
-
+```
 ------------------------------------------------
 
 2. I thought info.get("country")
 would print output automatically.
 
 Wrong understanding:
-Calling function = display output
+`Calling function = display output`
 
 Actual:
-Need print()
-
+`Need print()`
+```bash
 print(info.get("country"))
-
+```
 ---
 
 Dictionary
 
 Stores Key-Value pairs.
-
+```bash
 Methods:
 get()
 items()
 update()
 keys()
 values()
-
+```
 Difference:
-
+```bash
 info["country"]
 → KeyError
 
 info.get("country")
 → None
-
+```
 API JSON responses are converted into Dictionaries.
 
 ---
