@@ -1014,6 +1014,9 @@ Request 2 → Pod-2
 Request 3 → Pod-3
 ```
 
+Service distributes traffic across available Pods.
+The exact balancing behavior depends on Kubernetes networking implementation.
+
 ---
 
 # Think Of Every Service As
@@ -3062,6 +3065,8 @@ Must test:
 Inside Cluster
 ```
 
+ClusterIP is designed for internal cluster communication and is not directly accessible from outside the cluster.
+
 ---
 
 # Create Temporary Test Pod
@@ -3274,10 +3279,12 @@ Instead:
 ```text
 Service
  ↓
-Endpoints
+EndpointSlices
  ↓
 Pods
 ```
+
+Modern Kubernetes stores backend endpoint information in EndpointSlice resources.
 
 ---
 
@@ -9330,6 +9337,13 @@ web-app-clusterip   ClusterIP   10.96.100.50
 
 The ClusterIP remains stable even when Pods change.
 
+| Field         | Purpose                                      |
+| ------------- | -------------------------------------------- |
+| containerPort | Port application listens on inside container |
+| targetPort    | Service forwards traffic here                |
+| port          | Service exposes this port                    |
+
+
 ---
 
 # Challenge Task 3: Test ClusterIP Connectivity
@@ -11295,6 +11309,16 @@ Specific Service:
 kubectl get endpoints web-app-clusterip
 ```
 
+If output is:
+```bash
+<none>
+```
+then:
+```bash
+Selector and Pod labels do not match.
+```
+This is one of the most common Service debugging issues.
+
 ---
 
 ## View Pods and Labels
@@ -11800,4 +11824,34 @@ kube-proxy
 
 **Services are the foundation of Kubernetes networking. Mastering them is essential before moving to Ingress, Network Policies, StatefulSets, and production-grade Kubernetes architectures.**
 
+---
 
+## NodePort
+```bash
+Internet
+↓
+NodeIP:NodePort
+↓
+Service
+↓
+Pods
+```
+## LoadBalancer
+```bash
+Internet
+↓
+Cloud Load Balancer
+↓
+Service
+↓
+Pods
+```
+## ExternalName
+```bash
+Service
+↓
+External DNS Name
+↓
+External System
+```
+These are official Service types.
