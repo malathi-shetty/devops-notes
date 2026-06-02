@@ -2044,3 +2044,145 @@ Read-only by many nodes
 ```bash
 Read-write by many nodes
 ```
+
+---
+
+
+
+
+## Containers vs Persistent Storage
+
+| Feature                      | Container Storage                | Persistent Storage (PV/PVC)                |
+| ---------------------------- | -------------------------------- | ------------------------------------------ |
+| Lifetime                     | Exists only while Pod exists     | Survives Pod deletion and recreation       |
+| Data Persistence             | Data is lost when Pod is deleted | Data remains available                     |
+| Use Case                     | Temporary/cache data             | Databases, logs, uploads, application data |
+| Example                      | `emptyDir`                       | PV + PVC                                   |
+| Suitable for Production Data | ❌ No                             | ✅ Yes                                      |
+| Tied To                      | Pod lifecycle                    | Storage lifecycle                          |
+
+---
+
+## Persistent Volume (PV) vs Persistent Volume Claim (PVC)
+
+| Feature    | Persistent Volume (PV)                 | Persistent Volume Claim (PVC)  |
+| ---------- | -------------------------------------- | ------------------------------ |
+| Definition | Actual storage resource                | Request for storage            |
+| Created By | Admin or StorageClass                  | Developer/Application          |
+| Scope      | Cluster-wide                           | Namespaced                     |
+| Purpose    | Provides storage                       | Consumes storage               |
+| Contains   | Capacity, access modes, reclaim policy | Requested size and access mode |
+| Lifecycle  | Available → Bound → Released           | Pending → Bound                |
+| Example    | `manual-pv`                            | `my-pvc`                       |
+
+### Relationship
+
+```text
+Pod
+ ↓
+PVC (Request)
+ ↓
+PV (Storage)
+ ↓
+Physical Disk
+```
+
+---
+
+## Static vs Dynamic Provisioning
+
+| Feature               | Static Provisioning             | Dynamic Provisioning    |
+| --------------------- | ------------------------------- | ----------------------- |
+| PV Creation           | Manual                          | Automatic               |
+| StorageClass Required | No                              | Yes                     |
+| Admin Effort          | High                            | Low                     |
+| Scalability           | Limited                         | Highly scalable         |
+| PV Exists Before PVC  | Yes                             | No                      |
+| Common Use            | Learning, special storage needs | Production environments |
+| Example in Lab        | `manual-pv`                     | `pvc-ca95c210-...`      |
+
+### Static Provisioning Flow
+
+```text
+Admin creates PV
+      ↓
+Developer creates PVC
+      ↓
+PVC binds to PV
+```
+
+### Dynamic Provisioning Flow
+
+```text
+Developer creates PVC
+      ↓
+StorageClass creates PV
+      ↓
+PVC binds automatically
+```
+
+---
+
+## Access Modes Comparison
+
+| Access Mode | Full Form     | Read | Write | Number of Nodes |
+| ----------- | ------------- | ---- | ----- | --------------- |
+| RWO         | ReadWriteOnce | ✅    | ✅     | One node        |
+| ROX         | ReadOnlyMany  | ✅    | ❌     | Multiple nodes  |
+| RWX         | ReadWriteMany | ✅    | ✅     | Multiple nodes  |
+
+### Example Use Cases
+
+| Mode | Typical Use Case                      |
+| ---- | ------------------------------------- |
+| RWO  | Databases, single-node applications   |
+| ROX  | Shared documentation, static content  |
+| RWX  | Shared file systems, CMS uploads, NFS |
+
+---
+
+## Reclaim Policies Comparison
+
+| Policy                 | What Happens When PVC Is Deleted? | Data Preserved? | Manual Cleanup Needed? |
+| ---------------------- | --------------------------------- | --------------- | ---------------------- |
+| Retain                 | PV remains                        | ✅ Yes           | ✅ Yes                  |
+| Delete                 | PV deleted automatically          | ❌ No            | ❌ No                   |
+| Recycle *(Deprecated)* | Data scrubbed and reused          | Partial         | N/A                    |
+
+### Example from Your Lab
+
+| PV                                         | Reclaim Policy |
+| ------------------------------------------ | -------------- |
+| `manual-pv`                                | Retain         |
+| `pvc-ca95c210-6371-4036-ae08-26e4c8166f82` | Delete         |
+
+---
+
+## PV Status Lifecycle
+
+| Status    | Meaning                            |
+| --------- | ---------------------------------- |
+| Available | PV is free and waiting for a claim |
+| Bound     | PV is attached to a PVC            |
+| Released  | PVC deleted, PV still exists       |
+| Failed    | Volume reclamation failed          |
+
+---
+
+## Quick Revision Table
+
+| Topic                               | Key Point                             |
+| ----------------------------------- | ------------------------------------- |
+| Container Storage                   | Temporary, lost after Pod deletion    |
+| PV                                  | Actual storage resource               |
+| PVC                                 | Request for storage                   |
+| Static Provisioning                 | Admin creates PV manually             |
+| Dynamic Provisioning                | StorageClass creates PV automatically |
+| RWO                                 | One node can read/write               |
+| ROX                                 | Multiple nodes read only              |
+| RWX                                 | Multiple nodes read/write             |
+| Retain                              | Keep PV and data after PVC deletion   |
+| Delete                              | Remove PV and data automatically      |
+| Default StorageClass (Your Cluster) | `standard`                            |
+| Provisioner (Your Cluster)          | `rancher.io/local-path`               |
+
