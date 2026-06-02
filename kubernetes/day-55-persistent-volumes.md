@@ -296,36 +296,7 @@ Meaning:
 | Bound     | Claimed by PVC |
 | Released  | PVC deleted    |
 
----
 
-## hostPath
-
-```yaml
-hostPath:
-  path: /tmp/k8s-pv-data
-```
-
-Stores data directly on node filesystem.
-
-Good for learning.
-
-Not recommended for production.
-
-Why?
-
-Because if Pod moves to another node:
-
-```text
-Node A
-    ↓
-Data Exists
-
-Pod Moves
-
-Node B
-    ↓
-Data Missing
-```
 
 ---
 
@@ -1393,19 +1364,23 @@ This is the complete picture.
 
 # 6. Static Provisioning Workflow
 
+Static provisioning means an administrator creates the storage first.
+
 ```text
-Admin creates PV
+Admin Creates PV
         ↓
-Developer creates PVC
+Developer Creates PVC
         ↓
-PVC binds to PV
+PVC Binds to PV
         ↓
-Pod uses PVC
+Pod Uses PVC
 ```
 
 ---
 
 # 7. Dynamic Provisioning Workflow
+
+Dynamic provisioning means Kubernetes automatically creates storage when needed.
 
 ```text
 Developer creates PVC
@@ -1423,7 +1398,7 @@ Pod uses PVC
 
 # 8. Why hostPath is Not Production Ready
 
-We discussed it but briefly.
+
 
 ### Problem
 
@@ -1767,15 +1742,31 @@ Creates PVC
 StorageClass (optional)
     │
     ▼
-PV
+Provisioner
+    │
+    ▼
+Creates PV
     │
     ▼
 Physical Storage
     │
     ▼
+Binds PVC
+    │
+    ▼
 Pod Mounts PVC
+
+
 ```
 
+cluster:
+```bash
+standard
+      ↓
+rancher.io/local-path
+      ↓
+PV created automatically
+```
 ---
 
 ## Real Example from This Lab
@@ -1793,24 +1784,7 @@ manual-pv
 /tmp/k8s-pv-data
 ```
 
----
 
-# Static Provisioning Workflow
-
-Static provisioning means an administrator creates the storage first.
-
-```text
-Admin Creates PV
-        │
-        ▼
-Developer Creates PVC
-        │
-        ▼
-PVC Binds to PV
-        │
-        ▼
-Pod Uses PVC
-```
 
 ---
 
@@ -1826,27 +1800,7 @@ my-pvc
 pvc-demo
 ```
 
----
 
-# Dynamic Provisioning Workflow
-
-Dynamic provisioning means Kubernetes automatically creates storage when needed.
-
-```text
-Developer Creates PVC
-        │
-        ▼
-StorageClass
-        │
-        ▼
-PV Automatically Created
-        │
-        ▼
-PVC Bound
-        │
-        ▼
-Pod Uses Storage
-```
 
 ---
 
@@ -2039,6 +1993,22 @@ If an interviewer asks:
 Answer:
 
 > Containers are ephemeral and should not store important data locally. Kubernetes solves this by separating storage from Pods using Persistent Volumes and Persistent Volume Claims, allowing data to survive Pod restarts, deletions, and recreations.
+
+## Why don't Pods mount PV directly?
+```bash
+Pods use PVCs instead of directly using PVs because PVC abstracts storage details.
+
+Developers request storage through PVCs.
+
+They don't need to know whether storage comes from:
+
+- EBS
+- NFS
+- hostPath
+- Azure Disk
+
+PVC decouples applications from storage implementation.
+```
 
 ## Interview One-Liners
 ### Quick Facts
