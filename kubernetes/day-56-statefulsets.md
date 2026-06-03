@@ -204,6 +204,20 @@ StatefulSets solve these by providing:
 
 ---
 
+## StatefulSet Architecture Diagram
+
+Headless Service (web)
+          │
+ ┌────────┼────────┐
+ │        │        │
+web-0   web-1   web-2
+ │        │        │
+PVC      PVC      PVC
+ │        │        │
+PV       PV       PV
+
+---
+
 # Task 1 – Deployment Experiment
 
 Deployment YAML:
@@ -408,6 +422,18 @@ Created sequentially.
 ---
 
 ## PVC Creation
+
+```bash
+PVC Naming Pattern
+
+<volumeClaimTemplate-name>-<pod-name>
+
+Example:
+
+web-data-web-0
+web-data-web-1
+web-data-web-2
+```
 
 Check:
 
@@ -728,6 +754,20 @@ kubectl delete pvc web-data-web-0 web-data-web-1 web-data-web-2 web-data-web-3 w
 
 ---
 
+### StatefulSet Guarantees
+
+| Guarantee          | Meaning                 |
+| ------------------ | ----------------------- |
+| Stable Identity    | Pod name remains same   |
+| Stable Storage     | Same PVC reused         |
+| Stable DNS         | Same hostname           |
+| Ordered Deployment | web-0 before web-1      |
+| Ordered Scaling    | Sequential scaling      |
+| Ordered Updates    | Reverse rolling updates |
+
+
+---
+
 ## Important Safety Feature
 
 Deleting StatefulSet:
@@ -881,6 +921,20 @@ Therefore Kubernetes created StatefulSets.
 
 ---
 
+### Why not run MySQL in a Deployment?
+
+Deployment pods are replaceable and have no stable identity.
+
+MySQL replicas need:
+
+- stable hostname
+- stable storage
+- stable network identity
+
+StatefulSet provides all three.
+
+---
+
 # C. 1-Minute Revision Sheet
 
 ### StatefulSet Purpose
@@ -989,6 +1043,15 @@ web-data-web-0
 **StatefulSet = Stable Identity + Stable DNS + Persistent Storage + Ordered Operations**
 
 This single line explains almost the entire purpose of StatefulSets. 
+
+
+Deployment vs StatefulSet
+
+Deployment:
+Pods are interchangeable.
+
+StatefulSet:
+Pods are identifiable.
 
 ---
 
