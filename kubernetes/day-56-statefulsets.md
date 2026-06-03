@@ -168,21 +168,58 @@ web-0
 
 ---
 
-# Deployment vs StatefulSet
+## Sticky Identity (Important Interview Concept)
 
-| Feature        | Deployment       | StatefulSet   |
-| -------------- | ---------------- | ------------- |
-| Pod Names      | Random           | Stable        |
-| Startup Order  | Parallel         | Sequential    |
-| Shutdown Order | Random           | Reverse       |
-| Storage        | Shared/Ephemeral | Dedicated PVC |
-| DNS            | Dynamic          | Stable        |
-| Identity       | No               | Yes           |
-| Best For       | Stateless Apps   | Databases     |
+StatefulSet provides **sticky identity**.
+
+Even if a pod is rescheduled to another node, it keeps:
+
+* The same pod name
+* The same DNS identity
+* The same associated storage
+
+Example:
+
+```text
+web-0
+```
+
+may move to another node, but it still remains:
+
+```text
+web-0
+```
+
+and continues using its original PVC.
 
 ---
 
-# Section: Why StatefulSets?
+## StatefulSet Controller Responsibilities
+
+The StatefulSet Controller continuously ensures:
+
+* Correct number of replicas
+* Correct pod ordering
+* Correct pod identity
+* Correct PVC association
+
+If a pod is deleted:
+
+```text
+web-0
+```
+
+the controller recreates:
+
+```text
+web-0
+```
+
+with the same identity and storage association.
+
+---
+
+# StatefulSet Architecture
 
 ## Why StatefulSets?
 
@@ -190,22 +227,23 @@ Deployments are designed for stateless workloads.
 
 Problems for databases:
 
-- Random pod names
-- No stable identity
-- No ordered startup
-- No dedicated storage
+* Random pod names
+* No stable identity
+* No ordered startup
+* No dedicated storage
 
 StatefulSets solve these by providing:
 
-- Stable pod names
-- Ordered deployment
-- Stable DNS
-- Dedicated persistent storage
+* Stable pod names
+* Ordered deployment
+* Stable DNS
+* Dedicated persistent storage
 
 ---
 
 ## StatefulSet Architecture Diagram
 
+```text
 Headless Service (web)
           │
  ┌────────┼────────┐
@@ -215,74 +253,13 @@ web-0   web-1   web-2
 PVC      PVC      PVC
  │        │        │
 PV       PV       PV
+```
 
 ---
 
-# Task 1 – Deployment Experiment
-
-Deployment YAML:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx-deploy
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx
-```
-
-Apply:
-
-```bash
-kubectl apply -f deployment.yaml
-```
-
-Check pods:
-
-```bash
-kubectl get pods
-```
-
-Output:
-
-```text
-nginx-deploy-xxxxx
-nginx-deploy-yyyyy
-nginx-deploy-zzzzz
-```
-
-Delete one:
-
-```bash
-kubectl delete pod <pod-name>
-```
-
-New pod created with different name.
-
-Observation:
-
-Deployments do not provide stable identity.
-
----
-
-# Task 2 – Headless Service
+## Why StatefulSet Needs a Headless Service
 
 StatefulSets require a Headless Service.
-
----
-
-## Why?
 
 Normal Services:
 
@@ -312,7 +289,397 @@ Each pod must be reachable individually.
 
 ---
 
-Headless Service YAML:
+### How Headless Service Works
+
+A Headless Service does not receive a ClusterIP.
+
+Instead:
+
+```text
+DNS
+ ↓
+Returns Individual Pod IPs
+```
+
+rather than:
+
+```text
+DNS
+ ↓
+Returns Service IP
+```
+
+This allows pod-specific DNS records.
+
+Example:
+
+```text
+web-0.web.default.svc.cluster.local
+web-1.web.default.svc.cluster.local
+web-2.web.default.svc.cluster.local
+```
+
+Each pod can be contacted directly.
+
+---
+
+# Deployment vs StatefulSet
+
+| Feature        | Deployment       | StatefulSet   |
+| -------------- | ---------------- | ------------- |
+| Pod Names      | Random           | Stable        |
+| Startup Order  | Parallel         | Sequential    |
+| Shutdown Order | Random           | Reverse       |
+| Storage        | Shared/Ephemeral | Dedicated PVC |
+| DNS            | Dynamic          | Stable        |
+| Identity       | No               | Yes           |
+| Best For       | Stateless Apps   | Databases     |
+
+---
+
+## Key Difference
+
+Deployment:
+
+```text
+Pods are interchangeable.
+```
+
+StatefulSet:
+
+```text
+Pods are identifiable.
+```
+
+---
+
+## Stable DNS vs Dynamic Pod IP
+
+### Important Interview Point
+
+For StatefulSets:
+
+```text
+DNS name is stable
+Pod IP is not guaranteed stable
+```
+
+Do NOT assume:
+
+```text
+StatefulSet = Fixed Pod IP
+```
+
+This is incorrect.
+
+A pod may restart and receive a new IP.
+
+However:
+
+```text
+web-0.web.default.svc.cluster.local
+```
+
+remains the same.
+
+Applications should use DNS names, not Pod IPs.
+
+---
+
+## Storage and StorageClass
+
+StatefulSets commonly use:
+
+```yaml
+volumeClaimTemplates:
+```
+
+to automatically create one PVC per pod.
+
+When PVCs are created, Kubernetes uses:
+
+* The default StorageClass
+
+or
+
+* A specified StorageClass
+
+to dynamically provision Persistent Volumes (PVs).
+
+Flow:
+
+```text
+StatefulSet
+      ↓
+volumeClaimTemplates
+      ↓
+PVC Created
+      ↓
+StorageClass
+      ↓
+PV Provisioned
+```
+
+This allows each pod to receive dedicated persistent storage.
+
+---
+
+## StatefulSet Guarantees
+
+| Guarantee          | Meaning                 |
+| ------------------ | ----------------------- |
+| Stable Identity    | Pod name remains same   |
+| Stable Storage     | Same PVC reused         |
+| Stable DNS         | Same hostname           |
+| Ordered Deployment | web-0 before web-1      |
+| Ordered Scaling    | Sequential scaling      |
+| Ordered Updates    | Reverse rolling updates |
+
+---
+
+## Important Safety Feature
+
+Deleting StatefulSet:
+
+```text
+Deletes Pods
+```
+
+but
+
+```text
+Does NOT delete PVCs
+```
+
+to prevent accidental data loss.
+
+---
+
+## Real-World StatefulSet Use Cases
+
+### MySQL / PostgreSQL
+
+```text
+mysql-0
+mysql-1
+mysql-2
+```
+
+---
+
+### Kafka
+
+```text
+kafka-0
+kafka-1
+kafka-2
+```
+
+---
+
+### Elasticsearch
+
+```text
+es-0
+es-1
+es-2
+```
+
+---
+
+### ZooKeeper
+
+```text
+zk-0
+zk-1
+zk-2
+```
+
+---
+
+## When Should StatefulSets Be Used?
+
+Examples:
+
+* MySQL
+* PostgreSQL
+* Kafka
+* MongoDB
+* Cassandra
+* ZooKeeper
+
+These applications require:
+
+* Stable identity
+* Persistent storage
+* Stable DNS
+* Ordered startup/shutdown
+
+---
+
+## Can StatefulSet Work Without Persistent Storage?
+
+Yes.
+
+Stable identity and ordered operations can still be useful even without PVCs.
+
+StatefulSets are primarily about:
+
+* Identity
+* Ordering
+* Stable networking
+
+Persistent storage is commonly used, but not mandatory.
+
+---
+
+## Common StatefulSet Mistakes
+
+* Forgetting to create Headless Service
+* serviceName not matching Service name
+* Missing volumeClaimTemplates
+* Expecting PVCs to be deleted automatically
+* Using StatefulSet for stateless applications
+
+---
+
+## Important Memory Line
+
+```text
+Deployment = Stateless + Interchangeable Pods
+
+StatefulSet = Stable Identity + Stable DNS + Persistent Storage + Ordered Operations
+```
+
+This single line explains almost the entire purpose of StatefulSets.
+
+---
+
+# B. Hands-On Labs (Tasks 1–7)
+
+---
+
+# Task 1 – Deployment Experiment
+
+## Goal
+
+Observe how Deployments provide stateless, replaceable pods rather than stable identities.
+
+---
+
+## Deployment YAML
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deploy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+```
+
+---
+
+## Apply Deployment
+
+```bash
+kubectl apply -f deployment.yaml
+```
+
+---
+
+## Check Pods
+
+```bash
+kubectl get pods
+```
+
+Output:
+
+```text
+nginx-deploy-xxxxx
+nginx-deploy-yyyyy
+nginx-deploy-zzzzz
+```
+
+Notice:
+
+* Names contain random suffixes
+* Pods are interchangeable
+* No stable identity exists
+
+---
+
+## Delete One Pod
+
+```bash
+kubectl delete pod <pod-name>
+```
+
+New pod created:
+
+```text
+nginx-deploy-abcde
+```
+
+Observation:
+
+* Old pod disappears
+* New pod receives a different name
+* New identity is created
+
+### Conclusion
+
+Deployments do not provide stable identity.
+
+---
+
+# Task 2 – Headless Service
+
+## Why Is It Required?
+
+StatefulSets require a Headless Service.
+
+A normal Service performs load balancing:
+
+```text
+Service
+   ↓
+Load Balancing
+   ↓
+Pod
+```
+
+Requests are distributed among pods.
+
+---
+
+Stateful applications need direct pod access.
+
+Example:
+
+```text
+web-0
+web-1
+web-2
+```
+
+Each pod must be reachable individually.
+
+---
+
+## Headless Service YAML
 
 ```yaml
 apiVersion: v1
@@ -333,7 +700,9 @@ Apply:
 kubectl apply -f headless-service.yaml
 ```
 
-Verify:
+---
+
+## Verify Service
 
 ```bash
 kubectl get svc
@@ -355,15 +724,48 @@ creates a Headless Service.
 
 ---
 
-# Task 3 – StatefulSet
+## What Does Headless Service Do?
 
-YAML:
+Instead of:
+
+```text
+DNS
+ ↓
+Service IP
+ ↓
+Random Pod
+```
+
+It provides:
+
+```text
+DNS
+ ↓
+Individual Pod IPs
+```
+
+Result:
+
+```text
+web-0.web.default.svc.cluster.local
+web-1.web.default.svc.cluster.local
+web-2.web.default.svc.cluster.local
+```
+
+Each pod gets its own DNS record.
+
+---
+
+# Task 3 – Create StatefulSet
+
+## StatefulSet YAML
 
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: web
+
 spec:
   serviceName: web
   replicas: 3
@@ -376,6 +778,7 @@ spec:
     metadata:
       labels:
         app: web
+
     spec:
       containers:
       - name: nginx
@@ -388,6 +791,7 @@ spec:
   volumeClaimTemplates:
   - metadata:
       name: web-data
+
     spec:
       accessModes:
       - ReadWriteOnce
@@ -397,13 +801,17 @@ spec:
           storage: 100Mi
 ```
 
-Apply:
+---
+
+## Apply StatefulSet
 
 ```bash
 kubectl apply -f statefulset.yaml
 ```
 
-Watch:
+---
+
+## Watch Pod Creation
 
 ```bash
 kubectl get pods -l app=web -w
@@ -421,21 +829,55 @@ Created sequentially.
 
 ---
 
+## Ordered Creation
+
+StatefulSet follows:
+
+```text
+web-0
+↓ Ready
+
+web-1
+↓ Ready
+
+web-2
+```
+
+The next pod is not created until the previous pod becomes Ready.
+
+---
+
+## serviceName Purpose
+
+```yaml
+serviceName: web
+```
+
+links the StatefulSet to the Headless Service.
+
+This is required for stable DNS generation.
+
+---
+
 ## PVC Creation
 
-```bash
-PVC Naming Pattern
+### PVC Naming Pattern
 
+```text
 <volumeClaimTemplate-name>-<pod-name>
+```
 
 Example:
 
+```text
 web-data-web-0
 web-data-web-1
 web-data-web-2
 ```
 
-Check:
+---
+
+## Verify PVCs
 
 ```bash
 kubectl get pvc
@@ -463,9 +905,27 @@ web-data-web-0
 
 ---
 
-# Task 4 – Stable DNS
+## What Happened Internally?
 
-DNS Format:
+```text
+StatefulSet
+      ↓
+volumeClaimTemplates
+      ↓
+PVC Created
+      ↓
+StorageClass
+      ↓
+PV Provisioned
+```
+
+Each pod receives dedicated storage.
+
+---
+
+# Task 4 – Stable DNS Verification
+
+## DNS Format
 
 ```text
 <pod-name>.<service-name>.<namespace>.svc.cluster.local
@@ -479,7 +939,7 @@ web-0.web.default.svc.cluster.local
 
 ---
 
-Get Pod IPs:
+## Get Pod IPs
 
 ```bash
 kubectl get pods -o wide
@@ -495,7 +955,7 @@ web-2 → 10.244.0.15
 
 ---
 
-Run BusyBox:
+## Run BusyBox
 
 ```bash
 kubectl run -it --rm dns-test --image=busybox -- sh
@@ -520,9 +980,13 @@ web-1 → 10.244.0.13
 web-2 → 10.244.0.15
 ```
 
-Verification:
+---
 
+## Verification
+
+```text
 DNS IP = Pod IP
+```
 
 Perfect match.
 
@@ -530,15 +994,13 @@ Perfect match.
 
 ## What Did We Prove?
 
-StatefulSet gives:
-
 ### Stable DNS
 
 ```text
 web-0.web.default.svc.cluster.local
 ```
 
-always points to
+always points to:
 
 ```text
 web-0
@@ -560,16 +1022,38 @@ Perfect for databases.
 
 ---
 
-# Task 5 – Persistent Storage
+## Important Note
 
-Write data:
+For StatefulSets:
+
+```text
+DNS name is stable
+Pod IP is not guaranteed stable
+```
+
+Use:
+
+```text
+Stable DNS Name
+Dynamic Pod IP
+```
+
+Applications should use DNS names rather than Pod IPs.
+
+---
+
+# Task 5 – Persistent Storage Verification
+
+## Write Data
 
 ```bash
 kubectl exec web-0 -- sh -c \
 "echo 'Data from web-0' > /usr/share/nginx/html/index.html"
 ```
 
-Verify:
+---
+
+## Verify Data
 
 ```bash
 kubectl exec web-0 -- cat /usr/share/nginx/html/index.html
@@ -583,7 +1067,7 @@ Data from web-0
 
 ---
 
-Delete Pod:
+## Delete Pod
 
 ```bash
 kubectl delete pod web-0
@@ -591,7 +1075,9 @@ kubectl delete pod web-0
 
 Wait for recreation.
 
-Check:
+---
+
+## Check Pods
 
 ```bash
 kubectl get pods
@@ -607,7 +1093,7 @@ Same name.
 
 ---
 
-Verify Data:
+## Verify Data Again
 
 ```bash
 kubectl exec web-0 -- cat /usr/share/nginx/html/index.html
@@ -631,19 +1117,19 @@ Kubernetes deleted:
 Pod
 ```
 
-but not
+but not:
 
 ```text
 PVC
 ```
 
-Reattached:
+StatefulSet reattached:
 
 ```text
 web-data-web-0
 ```
 
-to
+to:
 
 ```text
 web-0
@@ -653,15 +1139,26 @@ again.
 
 ---
 
+## What Did We Prove?
+
+StatefulSet guarantees:
+
+* Stable identity
+* Stable storage
+* PVC reuse after recreation
+* Data persistence
+
+---
+
 # Task 6 – Ordered Scaling
 
-Scale Up:
+## Scale Up
 
 ```bash
 kubectl scale statefulset web --replicas=5
 ```
 
-Creation Order:
+Creation order:
 
 ```text
 web-3
@@ -672,13 +1169,35 @@ Sequential.
 
 ---
 
-Scale Down:
+### Ordered Scaling Behavior
+
+```text
+web-0
+↓ Ready
+
+web-1
+↓ Ready
+
+web-2
+↓ Ready
+
+web-3
+↓ Ready
+
+web-4
+```
+
+Each pod waits for the previous pod.
+
+---
+
+## Scale Down
 
 ```bash
 kubectl scale statefulset web --replicas=3
 ```
 
-Deletion Order:
+Deletion order:
 
 ```text
 web-4
@@ -689,7 +1208,7 @@ Reverse order.
 
 ---
 
-Check PVCs:
+## Verify PVCs
 
 ```bash
 kubectl get pvc
@@ -705,7 +1224,7 @@ web-data-web-3
 web-data-web-4
 ```
 
-All remain.
+All PVCs remain.
 
 ---
 
@@ -724,21 +1243,37 @@ reuse their old storage.
 
 ---
 
+## Interview Question
+
+### Are PVCs deleted when StatefulSet scales down?
+
+No.
+
+PVCs remain.
+
+Storage is preserved.
+
+---
+
 # Task 7 – Cleanup
 
-Delete StatefulSet:
+## Delete StatefulSet
 
 ```bash
 kubectl delete statefulset web
 ```
 
-Delete Service:
+---
+
+## Delete Service
 
 ```bash
 kubectl delete service web
 ```
 
-Check PVC:
+---
+
+## Verify PVCs
 
 ```bash
 kubectl get pvc
@@ -746,25 +1281,13 @@ kubectl get pvc
 
 PVCs still exist.
 
-Delete manually:
+---
+
+## Delete PVCs Manually
 
 ```bash
 kubectl delete pvc web-data-web-0 web-data-web-1 web-data-web-2 web-data-web-3 web-data-web-4
 ```
-
----
-
-### StatefulSet Guarantees
-
-| Guarantee          | Meaning                 |
-| ------------------ | ----------------------- |
-| Stable Identity    | Pod name remains same   |
-| Stable Storage     | Same PVC reused         |
-| Stable DNS         | Same hostname           |
-| Ordered Deployment | web-0 before web-1      |
-| Ordered Scaling    | Sequential scaling      |
-| Ordered Updates    | Reverse rolling updates |
-
 
 ---
 
@@ -782,11 +1305,91 @@ but
 Does NOT delete PVCs
 ```
 
-to prevent accidental data loss.
+This prevents accidental data loss.
 
 ---
 
-# B.  Notes (Questions & Answers)
+## Lab Summary
+
+### What We Proved
+
+#### Deployment
+
+```text
+Pods are replaceable.
+```
+
+---
+
+#### StatefulSet
+
+```text
+Pods are identifiable.
+```
+
+---
+
+### Verified Features
+
+✅ Stable Pod Names
+
+```text
+web-0
+web-1
+web-2
+```
+
+✅ Stable DNS
+
+```text
+web-0.web.default.svc.cluster.local
+```
+
+✅ Dedicated PVC
+
+```text
+web-data-web-0
+```
+
+✅ Ordered Creation
+
+```text
+0 → 1 → 2
+```
+
+✅ Ordered Deletion
+
+```text
+2 → 1 → 0
+```
+
+✅ Data survives pod recreation
+
+✅ PVC survives scaling down
+
+✅ PVC survives StatefulSet deletion
+
+---
+
+### Final Lab Memory Line
+
+```text
+Delete Pod
+    ↓
+Same Name
+    ↓
+Same PVC
+    ↓
+Same Data
+```
+
+This behavior is the core reason StatefulSets are used for databases and clustered applications.
+
+---
+
+# C. Interview Questions & Answers
+
+---
 
 ### What is a StatefulSet?
 
@@ -796,26 +1399,45 @@ A Kubernetes workload for stateful applications requiring stable identity, stora
 
 ### When should StatefulSets be used?
 
+Examples:
+
 * MySQL
 * PostgreSQL
 * Kafka
 * MongoDB
 * Cassandra
-* Zookeeper
+* ZooKeeper
+
+These applications require:
+
+* Stable identity
+* Persistent storage
+* Stable DNS
+* Ordered startup/shutdown
 
 ---
 
 ### Difference between Deployment and StatefulSet?
 
-Deployment = Stateless
+Deployment:
 
-StatefulSet = Stateful
+```text
+Stateless
+```
+
+StatefulSet:
+
+```text
+Stateful
+```
 
 ---
 
 ### Why does StatefulSet need a Headless Service?
 
 To create individual DNS records for each pod.
+
+Without a Headless Service, StatefulSet pods cannot receive stable DNS names.
 
 ---
 
@@ -827,9 +1449,12 @@ A Service with:
 clusterIP: None
 ```
 
-No load balancing.
+Characteristics:
 
-Direct DNS resolution.
+* No load balancing
+* No ClusterIP
+* Direct DNS resolution
+* Returns pod IPs instead of a Service IP
 
 ---
 
@@ -850,6 +1475,18 @@ web-0.web.default.svc.cluster.local
 ### What is volumeClaimTemplates?
 
 A template used to automatically create one PVC per StatefulSet pod.
+
+PVC naming pattern:
+
+```text
+<template-name>-<pod-name>
+```
+
+Example:
+
+```text
+web-data-web-0
+```
 
 ---
 
@@ -908,11 +1545,13 @@ Because databases require:
 ### Why doesn't a Deployment use stable pod names?
 
 Because Deployment pods are designed to be:
+
 * Disposable
 * Replaceable
 * Interchangeable
 
 Stateful applications require:
+
 * Identity
 * Ordering
 * Persistent storage
@@ -927,25 +1566,140 @@ Deployment pods are replaceable and have no stable identity.
 
 MySQL replicas need:
 
-- stable hostname
-- stable storage
-- stable network identity
+* Stable hostname
+* Stable storage
+* Stable network identity
 
 StatefulSet provides all three.
 
 ---
 
-# C. 1-Minute Revision Sheet
+### What is the purpose of serviceName in a StatefulSet?
 
-### StatefulSet Purpose
+Example:
+
+```yaml
+serviceName: web
+```
+
+Purpose:
+
+* Links StatefulSet to Headless Service
+* Used for stable DNS generation
+* Required for pod-specific DNS records
+
+---
+
+### Can StatefulSet work without persistent storage?
+
+Yes.
+
+Stable identity and ordered operations can still be useful without PVCs.
+
+StatefulSet is primarily about:
+
+* Identity
+* Ordering
+* Stable networking
+
+Persistent storage is optional.
+
+---
+
+### What happens if web-1 is not Ready?
+
+Using default:
+
+```text
+OrderedReady
+```
+
+policy:
+
+```text
+web-2
+```
+
+will not be created until:
+
+```text
+web-1
+```
+
+becomes Ready.
+
+---
+
+### What is the default podManagementPolicy?
+
+```text
+OrderedReady
+```
+
+---
+
+### Can StatefulSet pods move to another node?
+
+Yes.
+
+Identity remains the same.
+
+Pod IP may change.
+
+DNS remains stable.
+
+Example:
+
+```text
+web-0
+```
+
+remains:
+
+```text
+web-0
+```
+
+even after rescheduling.
+
+---
+
+### What is Sticky Identity?
+
+Sticky Identity means a StatefulSet pod keeps:
+
+* Same pod name
+* Same DNS identity
+* Same associated storage
+
+even if recreated or rescheduled.
+
+---
+
+### What is the StatefulSet Controller responsible for?
+
+The StatefulSet Controller continuously ensures:
+
+* Correct number of replicas
+* Correct pod ordering
+* Correct pod identity
+* Correct PVC association
+
+---
+
+# D. 1-Minute Revision Sheet
+
+---
+
+## StatefulSet Purpose
 
 Run stateful applications in Kubernetes.
 
 ---
 
-### Key Features
+## Key Features
 
-✅ Stable Pod Names
+### Stable Pod Names
 
 ```text
 web-0
@@ -953,35 +1707,71 @@ web-1
 web-2
 ```
 
-✅ Stable DNS
+---
+
+### Stable DNS
 
 ```text
 web-0.web.default.svc.cluster.local
 ```
 
-✅ Dedicated PVC
+---
+
+### Dedicated PVC
 
 ```text
 web-data-web-0
 ```
 
-✅ Ordered Creation
+---
+
+### Ordered Creation
 
 ```text
 0 → 1 → 2
 ```
 
-✅ Ordered Deletion
+---
+
+### Ordered Deletion
 
 ```text
 2 → 1 → 0
 ```
 
-✅ Data survives pod recreation
+---
+
+### Stable Identity
+
+Sticky pod identity is maintained.
 
 ---
 
-### Headless Service
+### Stable Storage
+
+Same PVC reused after recreation.
+
+---
+
+### Data Survives Pod Recreation
+
+Delete Pod:
+
+```text
+Pod Deleted
+```
+
+Result:
+
+```text
+Same Name
+Same PVC
+Same Data
+```
+
+---
+
+## Headless Service
 
 ```yaml
 clusterIP: None
@@ -991,15 +1781,21 @@ Required by StatefulSet.
 
 ---
 
-### DNS Pattern
+## DNS Pattern
 
 ```text
 <pod>.<service>.<namespace>.svc.cluster.local
 ```
 
+Example:
+
+```text
+web-0.web.default.svc.cluster.local
+```
+
 ---
 
-### PVC Pattern
+## PVC Pattern
 
 ```text
 <template-name>-<pod-name>
@@ -1013,154 +1809,224 @@ web-data-web-0
 
 ---
 
-# D. Quick Revision Table – One-Liners & Quick Facts
+## Storage Provisioning Flow
 
-| Concept            | Quick Fact                              |
-| ------------------ | --------------------------------------- |
-| StatefulSet        | Used for stateful applications          |
-| Deployment         | Used for stateless applications         |
-| Pod Identity       | Stable in StatefulSet                   |
-| Pod Naming         | web-0, web-1, web-2                     |
-| Service Required   | Headless Service                        |
-| Headless Service   | `clusterIP: None`                       |
-| DNS Pattern        | pod.service.namespace.svc.cluster.local |
-| Storage            | One PVC per pod                         |
-| PVC Creation       | via volumeClaimTemplates                |
-| Pod Startup        | Ordered                                 |
-| Pod Shutdown       | Reverse ordered                         |
-| Scale Down         | PVCs remain                             |
-| Delete StatefulSet | PVCs remain                             |
-| Delete Pod         | Data survives                           |
-| Best Use Cases     | MySQL, PostgreSQL, Kafka, MongoDB       |
-| Main Benefit       | Identity + DNS + Persistent Storage     |
-
----
-
-## Final Memory Line
-
-**Deployment = Stateless + Interchangeable Pods**
-
-**StatefulSet = Stable Identity + Stable DNS + Persistent Storage + Ordered Operations**
-
-This single line explains almost the entire purpose of StatefulSets. 
-
-
-Deployment vs StatefulSet
-
-Deployment:
-Pods are interchangeable.
-
-StatefulSet:
-Pods are identifiable.
-
----
-
-## Common StatefulSet Mistakes
-- Forgetting to create Headless Service
-- serviceName not matching Service name
-- Missing volumeClaimTemplates
-- Expecting PVCs to be deleted automatically
-- Using StatefulSet for stateless applications
-
----
-
-### Section: Real-World Use Cases
-
-## StatefulSet Use Cases
-```bash
-### MySQL / PostgreSQL
-
-mysql-0
-mysql-1
-mysql-2
-
-### Kafka
-
-kafka-0
-kafka-1
-kafka-2
-
-### Elasticsearch
-
-es-0
-es-1
-es-2
-
-### Zookeeper
-
-zk-0
-zk-1
-zk-2
+```text
+StatefulSet
+      ↓
+volumeClaimTemplates
+      ↓
+PVC
+      ↓
+StorageClass
+      ↓
+PV
 ```
 
 ---
 
-### Section: Advanced Topics
+# E. Quick Revision Table – One-Liners & Quick Facts
 
-```bash
-## Advanced StatefulSet Concepts
+| Concept              | Quick Fact                              |
+| -------------------- | --------------------------------------- |
+| StatefulSet          | Used for stateful applications          |
+| Deployment           | Used for stateless applications         |
+| Pod Identity         | Stable in StatefulSet                   |
+| Pod Naming           | web-0, web-1, web-2                     |
+| Service Required     | Headless Service                        |
+| Headless Service     | `clusterIP: None`                       |
+| DNS Pattern          | pod.service.namespace.svc.cluster.local |
+| Storage              | One PVC per pod                         |
+| PVC Creation         | via volumeClaimTemplates                |
+| Storage Provisioning | Via StorageClass                        |
+| Pod Startup          | Ordered                                 |
+| Pod Shutdown         | Reverse ordered                         |
+| Scale Down           | PVCs remain                             |
+| Delete StatefulSet   | PVCs remain                             |
+| Delete Pod           | Data survives                           |
+| Sticky Identity      | Same name + DNS + PVC                   |
+| Best Use Cases       | MySQL, PostgreSQL, Kafka, MongoDB       |
+| Main Benefit         | Identity + DNS + Persistent Storage     |
 
-### podManagementPolicy
+---
 
-OrderedReady (Default)
+# F. Advanced Topics
 
-Parallel
+---
 
-### Update Strategies
+## podManagementPolicy
 
-RollingUpdate
+### OrderedReady (Default)
 
-OnDelete
+Pods are created sequentially.
+
+Example:
+
+```text
+web-0
+↓ Ready
+
+web-1
+↓ Ready
+
+web-2
 ```
 
-### Section: Troubleshooting
-```bash
-## Troubleshooting
+Safer for databases.
 
-### Pods stuck in Pending
+---
+
+### Parallel
+
+Pods are created simultaneously.
+
+Example:
+
+```text
+web-0
+web-1
+web-2
+```
+
+No readiness dependency.
+
+Faster but less controlled.
+
+---
+
+## Update Strategies
+
+### RollingUpdate
+
+Default strategy.
+
+Pods updated automatically.
+
+Example:
+
+```text
+web-2
+↓
+web-1
+↓
+web-0
+```
+
+Controlled update process.
+
+---
+
+### OnDelete
+
+Pods updated only after manual deletion.
+
+Administrator controls update timing.
+
+---
+
+# G. Troubleshooting
+
+---
+
+## Pods Stuck in Pending
 
 Check:
 
+```bash
 kubectl get pvc
 
 kubectl describe pvc
 
 kubectl get storageclass
+```
 
-### DNS Resolution Failing
+Common causes:
+
+* No StorageClass
+* Storage unavailable
+* PVC not bound
+
+---
+
+## DNS Resolution Failing
 
 Check:
 
+```bash
 kubectl get svc web
 
 kubectl get pods -n kube-system
+```
 
-### Data Not Persisting
+Verify:
+
+* Headless Service exists
+* CoreDNS is running
+* serviceName matches Service name
+
+---
+
+## Data Not Persisting
 
 Check:
 
+```bash
 kubectl get pvc
 
 kubectl describe pod web-0
 ```
 
-## Note:
+Verify:
 
-For StatefulSets:
+* PVC exists
+* PVC bound successfully
+* Volume mounted correctly
 
-- DNS name is stable
-- Pod IP is not guaranteed stable
+---
 
-Use:
+## Pod Not Starting In Order
+
+Check:
+
 ```bash
-Stable DNS Name
-Dynamic Pod IP
+kubectl describe pod web-0
+
+kubectl describe pod web-1
+```
+
+Remember:
+
+```text
+web-1
+```
+
+must become Ready before:
+
+```text
+web-2
+```
+
+is created when using:
+
+```text
+OrderedReady
 ```
 
 ---
 
+# H. Common StatefulSet Mistakes
 
-# StatefulSet Quick Comparison Tables
+* Forgetting to create Headless Service
+* serviceName not matching Service name
+* Missing volumeClaimTemplates
+* Expecting PVCs to be deleted automatically
+* Assuming StatefulSet provides fixed Pod IPs
+* Using Pod IPs instead of DNS names
+* Using StatefulSet for stateless applications
+
+---
+
+# I. Quick Comparison Tables
 
 ---
 
@@ -1183,6 +2049,7 @@ Dynamic Pod IP
 
 ```text
 Deployment = Replaceable Pods
+
 StatefulSet = Identifiable Pods
 ```
 
@@ -1276,7 +2143,13 @@ web-1
 web-2
 ```
 
-Delete `web-0`
+Delete:
+
+```text
+web-0
+```
+
+Result:
 
 ```text
 web-0
@@ -1346,8 +2219,6 @@ Reverse order.
 
 ### Deployment
 
-DNS:
-
 ```text
 service-name.default.svc.cluster.local
 ```
@@ -1359,8 +2230,6 @@ No pod-specific DNS.
 ---
 
 ### StatefulSet
-
-DNS:
 
 ```text
 web-0.web.default.svc.cluster.local
@@ -1469,7 +2338,7 @@ Same identity.
 
 ---
 
-## 15. Most Important  Table
+## 15. Most Important Table
 
 | Requirement     | Deployment | StatefulSet |
 | --------------- | ---------- | ----------- |
@@ -1485,7 +2354,7 @@ Same identity.
 
 ---
 
-# Final  One-Liner
+# Final Memory Lines
 
 ```text
 Deployment = Pods are interchangeable.
@@ -1493,3 +2362,37 @@ Deployment = Pods are interchangeable.
 StatefulSet = Pods have identity, storage, and stable networking.
 ```
 
+---
+
+```text
+Delete Pod
+    ↓
+Same Name
+    ↓
+Same PVC
+    ↓
+Same Data
+```
+
+---
+
+```text
+Stable DNS Name
+Dynamic Pod IP
+```
+
+---
+
+```text
+Deployment = Replaceable Pods
+
+StatefulSet = Identifiable Pods
+```
+
+---
+
+```text
+Deployment = Stateless + Interchangeable Pods
+
+StatefulSet = Stable Identity + Stable DNS + Persistent Storage + Ordered Operations
+```
