@@ -4876,6 +4876,181 @@ These will later be combined with APIs, logs, configuration files, and automatio
 
 
 
+## What is a Status Code?
+
+When Python sends a request:
+
+```python
+response = requests.get(
+    "https://jsonplaceholder.typicode.com/todos/3"
+)
+```
+
+the server replies with:
+
+```text
+Data + Status Code
+```
+
+Think:
+
+```text
+Python
+   ↓
+Request
+   ↓
+Server
+   ↓
+Response
+   ├── Status Code
+   └── Data
+```
+
+---
+
+## Check Status Code
+
+```python
+print(response.status_code)
+```
+
+Output:
+
+```text
+200
+```
+
+---
+
+## Common Status Codes
+
+### 200 OK
+
+```text
+Request successful
+```
+
+Example:
+
+```python
+response = requests.get(
+    "https://jsonplaceholder.typicode.com/todos/3"
+)
+```
+
+Output:
+
+```text
+200
+```
+
+---
+
+### 201 Created
+
+```text
+Resource created successfully
+```
+
+Usually used with:
+
+```python
+requests.post()
+```
+
+---
+
+### 400 Bad Request
+
+```text
+Request format is wrong
+```
+
+Example:
+
+```text
+Missing required field
+```
+
+---
+
+### 401 Unauthorized
+
+```text
+Authentication required
+```
+
+Example:
+
+```text
+Missing API key
+```
+
+---
+
+### 403 Forbidden
+
+```text
+You are not allowed
+```
+
+Example:
+
+```text
+User lacks permissions
+```
+
+---
+
+### 404 Not Found
+
+Example:
+
+```python
+response = requests.get(
+    "https://jsonplaceholder.typicode.com/invalid"
+)
+```
+
+Output:
+
+```text
+404
+```
+
+Meaning:
+
+```text
+URL not found
+```
+
+---
+
+### 500 Internal Server Error
+
+```text
+Problem on server side
+```
+
+---
+
+# Real DevOps Usage
+
+Never directly trust the response.
+
+Check status code first:
+
+```python
+response = requests.get(url)
+
+if response.status_code == 200:
+    print("Success")
+else:
+    print("API Failed")
+```
+
+
+
 ## Purpose
 
 Learn how to:
@@ -5294,6 +5469,45 @@ JSON (JavaScript Object Notation) is a lightweight data format commonly used by 
 
 ---
 
+### Q. What is a Status Code?
+
+**Answer:**
+
+A status code is a number returned by the server indicating whether the request succeeded or failed.
+
+---
+
+### Q. What does 200 mean?
+
+**Answer:**
+
+Request was successful.
+
+---
+
+### Q. What does 404 mean?
+
+**Answer:**
+
+Resource or URL not found.
+
+---
+
+### Q. What does 500 mean?
+
+**Answer:**
+
+Internal server error.
+
+---
+
+### Q. How do you get the status code in Python?
+
+**Answer:**
+
+```python
+print(response.status_code)
+```
 
 
 ### Mistake 1
@@ -5493,4 +5707,46 @@ data()[3] ❌
 data[3] ✅
 ```
 
-This is the format I'd preserve in your notes repository for **05_api_basics_all_todos.py**.
+---
+
+
+```text
+Status Codes
+
+200 → Success
+
+201 → Created
+
+400 → Bad Request
+
+401 → Unauthorized
+
+403 → Forbidden
+
+404 → Not Found
+
+500 → Internal Server Error
+
+Check:
+
+response.status_code
+```
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
