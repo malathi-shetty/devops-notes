@@ -1,26 +1,34 @@
-# StatefulSets
+### StatefulSets
 kubectl get sts
 
-# Watch StatefulSet Pods
+### Watch StatefulSet Pods
 kubectl get pods -l app=web -w
 
-# Check PVCs
+### Check PVCs
 kubectl get pvc
 
-# Scale StatefulSet
+### Scale StatefulSet
 kubectl scale statefulset web --replicas=5
 
-# Delete StatefulSet
+### Delete StatefulSet
 kubectl delete statefulset web
 
-# Delete Headless Service
+### Delete Headless Service
 kubectl delete svc web
 
-# DNS Testing
+### DNS Testing
 kubectl run -it --rm dns-test --image=busybox -- sh
 
-# Inside BusyBox
+### Inside BusyBox
 nslookup web-0.web.default.svc.cluster.local
 
-# Check Pod IPs
+### Check Pod IPs
 kubectl get pods -o wide
+
+kubectl get sts
+
+kubectl describe sts web
+
+kubectl rollout status statefulset/web
+
+kubectl scale sts web --replicas=5
