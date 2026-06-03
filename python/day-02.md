@@ -4868,3 +4868,629 @@ Append Files
 
 These will later be combined with APIs, logs, configuration files, and automation reports.
 
+---
+
+# 05_api_basics_all_todos.py
+
+---
+
+
+
+## Purpose
+
+Learn how to:
+
+* Call an API using `requests`
+* Receive JSON data
+* Understand the difference between:
+
+  * Dictionary (`dict`)
+  * List of Dictionaries (`list`)
+* Access API data
+* Loop through API responses
+
+---
+
+## Code
+
+```python
+import requests
+
+response = requests.get(
+    "https://jsonplaceholder.typicode.com/todos"
+)
+
+data = response.json()
+```
+
+---
+
+## What is requests.get()?
+
+Sends a GET request to the server.
+
+```python
+response = requests.get(URL)
+```
+
+Think:
+
+```text
+Python
+  ↓
+Internet
+  ↓
+Server
+  ↓
+Data Returned
+```
+
+---
+
+## What is response?
+
+```python
+print(response)
+```
+
+Output:
+
+```text
+<Response [200]>
+```
+
+Meaning:
+
+```text
+200 = Success
+```
+
+---
+
+## What is response.json()?
+
+Converts JSON into Python objects.
+
+```python
+data = response.json()
+```
+
+---
+
+## What is returned?
+
+URL:
+
+```text
+https://jsonplaceholder.typicode.com/todos
+```
+
+returns ALL todos.
+
+Example:
+
+```python
+[
+    {
+        "userId": 1,
+        "id": 1,
+        "title": "delectus aut autem",
+        "completed": False
+    },
+
+    {
+        "userId": 1,
+        "id": 2,
+        "title": "quis ut nam facilis",
+        "completed": False
+    }
+]
+```
+
+---
+
+## Type Check
+
+```python
+print(type(data))
+```
+
+Output:
+
+```python
+<class 'list'>
+```
+
+Meaning:
+
+```text
+List of Todos
+```
+
+---
+
+## Length
+
+```python
+print(len(data))
+```
+
+Output:
+
+```text
+200
+```
+
+Meaning:
+
+```text
+Total Todos = 200
+```
+
+---
+
+## Access First Todo
+
+```python
+print(data[0])
+```
+
+Output:
+
+```python
+{
+    'userId': 1,
+    'id': 1,
+    'title': 'delectus aut autem',
+    'completed': False
+}
+```
+
+---
+
+## Access Fourth Todo
+
+```python
+print(data[3])
+```
+
+Output:
+
+```python
+{
+    'userId': 1,
+    'id': 4,
+    'title': 'et porro tempora',
+    'completed': True
+}
+```
+
+---
+
+## Important
+
+```python
+data[0]
+```
+
+means:
+
+```text
+First Todo
+```
+
+NOT
+
+```text
+Todo ID 0
+```
+
+Because list indexing starts from:
+
+```text
+0
+1
+2
+3
+```
+
+---
+
+## Print Specific Value
+
+```python
+print(data[0]["title"])
+```
+
+Output:
+
+```text
+delectus aut autem
+```
+
+Explanation:
+
+```text
+data[0]
+    ↓
+First Dictionary
+    ↓
+"title"
+```
+
+---
+
+## Loop Through All Todos
+
+```python
+for todo in data:
+```
+
+Each iteration gets:
+
+```python
+{
+    "userId":1,
+    "id":1,
+    ...
+}
+```
+
+Then:
+
+```python
+for key,value in todo.items():
+```
+
+prints:
+
+```text
+userId 1
+id 1
+title delectus aut autem
+completed False
+```
+
+---
+
+## Why Print Dashes?
+
+```python
+print("----------")
+```
+
+Separates todos.
+
+Without dashes:
+
+```text
+userId 1
+id 1
+userId 1
+id 2
+userId 1
+id 3
+```
+
+Confusing.
+
+---
+
+With dashes:
+
+```text
+----------
+userId 1
+id 1
+
+----------
+userId 1
+id 2
+```
+
+Much easier to read.
+
+---
+
+
+
+### Q1. What does requests.get() do?
+
+**Answer:**
+
+Sends an HTTP GET request to a server and receives data.
+
+---
+
+### Q2. What does response.json() do?
+
+**Answer:**
+
+Converts JSON response into Python objects such as dictionaries and lists.
+
+---
+
+### Q3. What type is returned by `/todos`?
+
+**Answer:**
+
+```python
+<class 'list'>
+```
+
+A list of dictionaries.
+
+---
+
+### Q4. What type is returned by `/todos/3`?
+
+**Answer:**
+
+```python
+<class 'dict'>
+```
+
+A single dictionary.
+
+---
+
+### Q5. Difference between `/todos` and `/todos/3`?
+
+**Answer:**
+
+```text
+/todos
+    ↓
+List of Dictionaries
+
+/todos/3
+    ↓
+Single Dictionary
+```
+
+---
+
+### Q6. How do you access the first todo?
+
+**Answer:**
+
+```python
+data[0]
+```
+
+---
+
+### Q7. How do you access the title of the first todo?
+
+**Answer:**
+
+```python
+data[0]["title"]
+```
+
+---
+
+### Q8. Why use todo.items()?
+
+**Answer:**
+
+To iterate through all key-value pairs in a dictionary.
+
+---
+
+### Q9. What does len(data) return?
+
+**Answer:**
+
+Total number of todos in the list.
+
+---
+
+### Q10. What is JSON?
+
+**Answer:**
+
+JSON (JavaScript Object Notation) is a lightweight data format commonly used by APIs.
+
+---
+
+
+
+### Mistake 1
+
+Used:
+
+```python
+print(data()[3])
+```
+
+Error:
+
+```text
+TypeError: 'list' object is not callable
+```
+
+Reason:
+
+```text
+() = Function Call
+[] = List Index
+```
+
+Correct:
+
+```python
+print(data[3])
+```
+
+---
+
+### Mistake 2
+
+Thought:
+
+```text
+/todos/3
+```
+
+means:
+
+```text
+userId = 3
+```
+
+Reality:
+
+```text
+Todo ID = 3
+```
+
+Output:
+
+```python
+{
+    "userId":1,
+    "id":3
+}
+```
+
+---
+
+### Mistake 3
+
+Confused Dictionary and List.
+
+Learned:
+
+```text
+dict
+    ↓
+items()
+
+list
+    ↓
+for item in list
+```
+
+---
+
+### Mistake 4
+
+Expected to see entire output in VS Code terminal.
+
+Reality:
+
+```text
+200 todos
+×
+4 fields
+=
+800+ lines
+```
+
+Solution:
+
+```python
+if count == 5:
+    break
+```
+
+Print only a few records.
+
+---
+
+
+
+```text
+API Call
+    ↓
+requests.get(URL)
+
+Response
+    ↓
+response.json()
+
+/todos
+    ↓
+list
+
+/todos/3
+    ↓
+dict
+
+List Access
+    ↓
+data[0]
+
+Dictionary Access
+    ↓
+data["title"]
+
+Loop List
+    ↓
+for todo in data
+
+Loop Dictionary
+    ↓
+for key,value in todo.items()
+
+len(data)
+    ↓
+Total Todos
+
+data[0]["title"]
+    ↓
+First Todo Title
+
+[] = Index
+
+() = Function Call
+```
+
+---
+
+
+```text
+05_api_basics_all_todos.py
+
+requests.get()
+→ Call API
+
+response.json()
+→ Convert JSON to Python
+
+/todos
+→ List of Dictionaries
+
+/todos/3
+→ Dictionary
+
+type(data)
+→ list
+
+len(data)
+→ Total Todos
+
+data[0]
+→ First Todo
+
+data[0]["title"]
+→ First Todo Title
+
+for todo in data
+→ Loop List
+
+for key,value in todo.items()
+→ Loop Dictionary
+
+[] → Index
+
+() → Function Call
+
+Common Mistake:
+data()[3] ❌
+
+data[3] ✅
+```
+
+This is the format I'd preserve in your notes repository for **05_api_basics_all_todos.py**.
