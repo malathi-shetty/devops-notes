@@ -80,6 +80,22 @@ kubectl get service
 kubectl describe svc web
 ```
 
+### Why Headless Service?
+
+```text
+Headless Service (clusterIP: None)
+provides DNS records for each Pod.
+
+Example:
+
+web-0.web.default.svc.cluster.local
+web-1.web.default.svc.cluster.local
+web-2.web.default.svc.cluster.local
+
+Without a Headless Service,
+StatefulSet Pods cannot get stable DNS names.
+```
+
 ---
 
 # Task 3: Create StatefulSet
@@ -242,6 +258,27 @@ kubectl get pods
 kubectl get pvc
 ```
 
+### StatefulSet Ordering
+
+```text
+Scale Up:
+
+web-0
+web-1
+web-2
+web-3
+web-4
+
+Created Sequentially
+
+Scale Down:
+
+web-4
+web-3
+
+Deleted Sequentially
+```
+
 ---
 
 # Task 7: Cleanup
@@ -300,10 +337,11 @@ kubectl describe pod web-0
 kubectl describe pvc web-data-web-0
 ```
 
-## Describe PV
+## Check PVs
 
 ```bash
-kubectl describe pv
+kubectl get pv
+kubectl describe pv <pv-name>
 ```
 
 ## Check Events
@@ -360,7 +398,33 @@ kubectl rollout undo statefulset/web
 
 ---
 
-# Most Important Commands (Interview Favorites)
+# Deployment vs StatefulSet
+
+| Deployment       | StatefulSet       |
+| ---------------- | ----------------- |
+| Random Pod Names | Stable Pod Names  |
+| Shared Storage   | Dedicated Storage |
+| No Ordering      | Ordered Scaling   |
+| Stateless Apps   | Stateful Apps     |
+
+---
+
+# Common Stateful Applications
+
+```text
+MySQL
+PostgreSQL
+MongoDB
+Cassandra
+Kafka
+ZooKeeper
+Redis Cluster
+Elasticsearch
+```
+
+---
+
+# Most Important Commands ( Favorites)
 
 ```bash
 kubectl get sts
@@ -384,10 +448,32 @@ nslookup web-0.web.default.svc.cluster.local
 kubectl delete statefulset web
 ```
 
-## One-Line Summary
+---
+
+# Three Core StatefulSet Concepts
 
 ```text
-Create Deployment → Observe Random Pods →
+1. Stable Identity
+   -> nslookup web-0.web.default.svc.cluster.local
+
+2. Persistent Storage
+   -> kubectl exec ...
+   -> kubectl delete pod web-0
+   -> Data survives Pod recreation
+
+3. Ordered Scaling
+   -> kubectl scale statefulset web --replicas=5
+   -> Pods created in order
+   -> Pods deleted in reverse order
+```
+
+---
+
+# One-Line Summary
+
+```text
+Create Deployment →
+Observe Random Pods →
 Create Headless Service →
 Create StatefulSet →
 Verify DNS →
@@ -396,77 +482,22 @@ Scale Up/Down →
 Cleanup PVCs Manually
 ```
 
-***
-
-
-
-
-
-```bash
-# StatefulSets
-kubectl get sts
-kubectl describe sts web
-
-# Apply Resources
-kubectl apply -f headless-service.yaml
-kubectl apply -f statefulset.yaml
-
-# Watch StatefulSet Pods
-kubectl get pods -l app=web -w
-
-# View Pods
-kubectl get pods
-kubectl get pods -o wide
-
-# Check Storage
-kubectl get pvc
-kubectl describe pvc web-data-web-0
-
-# Scale StatefulSet
-kubectl scale statefulset web --replicas=5
-kubectl scale statefulset web --replicas=3
-
-# StatefulSet Rollout
-kubectl rollout status statefulset/web
-
-# DNS Testing
-kubectl run -it --rm dns-test --image=busybox -- sh
-
-# Inside BusyBox
-nslookup web-0.web.default.svc.cluster.local
-nslookup web-1.web.default.svc.cluster.local
-nslookup web-2.web.default.svc.cluster.local
-
-# Verify Persistent Storage
-kubectl exec web-0 -- sh -c "echo 'Data from web-0' > /usr/share/nginx/html/index.html"
-
-kubectl exec web-0 -- cat /usr/share/nginx/html/index.html
-
-# Delete Pod and Verify Persistence
-kubectl delete pod web-0
-
-kubectl exec web-0 -- cat /usr/share/nginx/html/index.html
-
-# Cleanup
-kubectl delete statefulset web
-kubectl delete svc web
-
-# Delete PVCs Manually
-kubectl delete pvc web-data-web-0 web-data-web-1 web-data-web-2 web-data-web-3 web-data-web-4
-```
-
 ---
 
-## If you want a very short interview revision sheet
+# Very Short  Revision Sheet
 
 ```bash
 kubectl get sts
 kubectl describe sts web
+
 kubectl get pods -l app=web -w
+
 kubectl get pvc
+
 kubectl get pods -o wide
 
 kubectl scale sts web --replicas=5
+
 kubectl scale sts web --replicas=3
 
 kubectl delete pod web-0
@@ -474,31 +505,12 @@ kubectl delete pod web-0
 kubectl exec web-0 -- cat /usr/share/nginx/html/index.html
 
 kubectl run -it --rm dns-test --image=busybox -- sh
+
 nslookup web-0.web.default.svc.cluster.local
 
 kubectl delete statefulset web
+
 kubectl delete svc web
+
 kubectl delete pvc <pvc-name>
 ```
-
-
-
-```bash
-kubectl apply -f statefulset.yaml
-kubectl apply -f headless-service.yaml
-
-kubectl get pvc
-
-kubectl delete pod web-0
-
-kubectl exec web-0 -- cat /usr/share/nginx/html/index.html
-
-kubectl scale statefulset web --replicas=3
-```
-
-These are important because they demonstrate the **three core StatefulSet concepts**:
-
-1. **Stable Identity** → `nslookup web-0...`
-2. **Persistent Storage** → `kubectl exec ...`, `kubectl delete pod web-0`
-3. **Ordered Scaling** → `kubectl scale ...`
-
