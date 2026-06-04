@@ -4,32 +4,6 @@
 
 ---
 
-You're right. What I gave earlier was more of a **study guide**.
-
-For DevOps notes that you'll revisit 6 months later, the notes should read like:
-
-* What we learned
-* Why it exists
-* What happened in our lab
-* Commands we ran
-* Output we saw
-* Common mistakes we hit
-* Troubleshooting
-* Interview questions
-* Real-world usage
-
-In other words:
-
-> "If future me forgets Day 57, can I learn the whole topic again from these notes?"
-
-The answer for the previous version is: **not fully**.
-
----
-
-# Day 57 – Resource Requests, Limits & Probes (Detailed Master Notes)
-
----
-
 # 1. Why Kubernetes Needs Resources
 
 When we create a Pod, Kubernetes does not automatically know:
