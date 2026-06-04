@@ -2511,3 +2511,1429 @@ No labels = No Service selector.
 | Task 6 | What if failureThreshold=2? | CrashLoopBackOff                      |
 
 ```
+
+***
+
+# Liveness vs Readiness vs Startup Probes
+
+This is one of the most important Kubernetes interview topics.
+
+| Feature              | Liveness Probe                        | Readiness Probe                         | Startup Probe                               |
+| -------------------- | ------------------------------------- | --------------------------------------- | ------------------------------------------- |
+| Purpose              | Checks if application is alive        | Checks if application can serve traffic | Checks if application has finished starting |
+| Question Answered    | "Is the app still running correctly?" | "Can the app receive requests?"         | "Has the app started yet?"                  |
+| Failure Action       | Restart container                     | Remove Pod from Service endpoints       | Kill and restart container                  |
+| Container Restarted? | ✅ Yes                                 | ❌ No                                    | ✅ Yes                                       |
+| Traffic Sent to Pod? | Usually No (container restarting)     | ❌ No                                    | ❌ No until startup succeeds                 |
+| Used For             | Detecting stuck/hung applications     | Load balancing and traffic control      | Slow-starting applications                  |
+| Runs During Startup? | ❌ Disabled by startup probe           | ❌ Disabled by startup probe             | ✅ Yes                                       |
+| Typical Types        | exec, httpGet, tcpSocket              | exec, httpGet, tcpSocket                | exec, httpGet, tcpSocket                    |
+| Day 57 Example       | `cat /tmp/healthy`                    | HTTP GET `/index.html`                  | `cat /tmp/started`                          |
+
+---
+
+# 1. Liveness Probe
+
+### Purpose
+
+Checks whether the application is still healthy after it has started.
+
+If the application becomes stuck, deadlocked, or unhealthy:
+
+```text
+Liveness Probe Fails
+       ↓
+Kubernetes Restarts Container
+```
+
+### Day 57 Example
+
+Container created:
+
+```bash
+touch /tmp/healthy
+```
+
+After 30 seconds:
+
+```bash
+rm /tmp/healthy
+```
+
+Probe:
+
+```yaml
+livenessProbe:
+  exec:
+    command:
+    - cat
+    - /tmp/healthy
+  periodSeconds: 5
+  failureThreshold: 3
+```
+
+### What Happened
+
+File removed:
+
+```text
+/tmp/healthy missing
+```
+
+Probe failed:
+
+```text
+cat: can't open '/tmp/healthy'
+```
+
+Kubernetes:
+
+```text
+Container busybox failed liveness probe,
+will be restarted
+```
+
+Observed:
+
+```text
+Restart Count: 13
+```
+
+### Interview Answer
+
+**What happens when a liveness probe fails?**
+
+```text
+Kubernetes restarts the container.
+```
+
+---
+
+# 2. Readiness Probe
+
+### Purpose
+
+Checks whether the application is ready to receive traffic.
+
+The container may be running but not ready.
+
+Example:
+
+```text
+Application starting
+Database unavailable
+Cache warming
+Dependency unavailable
+```
+
+In such cases:
+
+```text
+Don't restart container.
+Just stop sending traffic.
+```
+
+### Day 57 Example
+
+Probe:
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /index.html
+    port: 80
+```
+
+Initial State:
+
+```text
+READY 1/1
+```
+
+Service Endpoint:
+
+```text
+10.244.0.15:80
+```
+
+You deleted:
+
+```bash
+kubectl exec readiness-demo -- rm /usr/share/nginx/html/index.html
+```
+
+Probe Result:
+
+```text
+HTTP 404
+```
+
+Pod Status:
+
+```text
+READY 0/1
+```
+
+Endpoints:
+
+```text
+ENDPOINTS <none>
+```
+
+Restart Count:
+
+```text
+0
+```
+
+### What Happened
+
+```text
+Readiness failed
+↓
+Pod removed from Service
+↓
+No traffic sent
+↓
+Container continues running
+```
+
+### Interview Answer
+
+**What happens when a readiness probe fails?**
+
+```text
+Pod is removed from Service endpoints.
+Container is NOT restarted.
+```
+
+---
+
+# 3. Startup Probe
+
+### Purpose
+
+Used for slow-starting applications.
+
+Examples:
+
+```text
+Java applications
+Spring Boot
+Large ML models
+Database initialization
+```
+
+Without startup probe:
+
+```text
+Application still starting
+↓
+Liveness probe fails
+↓
+Container restarted
+↓
+Application never starts
+```
+
+Startup probe prevents this.
+
+### Day 57 Example
+
+Container:
+
+```bash
+sleep 20
+touch /tmp/started
+sleep 600
+```
+
+Probe:
+
+```yaml
+startupProbe:
+  exec:
+    command:
+    - cat
+    - /tmp/started
+  periodSeconds: 5
+  failureThreshold: 12
+```
+
+Budget:
+
+```text
+12 × 5 = 60 seconds
+```
+
+Application Needs:
+
+```text
+20 seconds
+```
+
+Result:
+
+```text
+Startup succeeds
+```
+
+Then:
+
+```text
+Startup Probe Success
+↓
+Liveness Probe Enabled
+↓
+Readiness Probe Enabled
+```
+
+---
+
+## What if failureThreshold = 2 ?
+
+Configuration:
+
+```yaml
+failureThreshold: 2
+periodSeconds: 5
+```
+
+Budget:
+
+```text
+2 × 5 = 10 seconds
+```
+
+Application Needs:
+
+```text
+20 seconds
+```
+
+Result:
+
+```text
+Startup probe fails
+↓
+Container killed
+↓
+Restarted
+↓
+Fails again
+↓
+CrashLoopBackOff
+```
+
+### Interview Answer
+
+**What happens if startup probe threshold is too low?**
+
+```text
+Container may be killed before the application finishes starting,
+causing CrashLoopBackOff.
+```
+
+---
+
+# Visual Flow
+
+### Liveness
+
+```text
+Application Running
+       ↓
+Liveness Fails
+       ↓
+Restart Container
+```
+
+---
+
+### Readiness
+
+```text
+Application Running
+       ↓
+Readiness Fails
+       ↓
+Remove From Service Endpoints
+       ↓
+No Traffic
+```
+
+---
+
+### Startup
+
+```text
+Application Starting
+       ↓
+Startup Probe Running
+       ↓
+Success
+       ↓
+Enable Liveness + Readiness
+```
+
+---
+
+# One-Line Memory Trick
+
+```text
+Liveness  = Restart Me
+Readiness = Route Traffic To Me
+Startup   = Give Me Time To Start
+```
+
+---
+
+# Interview Quick Answer
+
+| Probe     | One-Line Meaning            |
+| --------- | --------------------------- |
+| Liveness  | "Am I alive?"               |
+| Readiness | "Can I take traffic?"       |
+| Startup   | "Have I finished starting?" |
+
+### Failure Results
+
+| Probe Failure | Result                     |
+| ------------- | -------------------------- |
+| Liveness      | Restart container          |
+| Readiness     | Remove from endpoints      |
+| Startup       | Kill and restart container |
+
+---
+
+
+
+# Liveness vs Readiness vs Startup Probes
+
+This is one of the most commonly asked Kubernetes interview topics.
+
+---
+
+## Why Kubernetes Needs Probes
+
+A container being **Running** does not necessarily mean the application is healthy.
+
+Examples:
+
+* Application process is stuck
+* Application cannot serve requests
+* Application is still starting
+* Application is deadlocked
+* Application lost database connection
+
+Without probes:
+
+```text
+Pod Status = Running
+Application = Broken
+```
+
+Kubernetes would never know.
+
+Probes allow Kubernetes to continuously check application health.
+
+---
+
+# 1. Liveness Probe
+
+## Purpose
+
+Answers:
+
+```text
+Is the application alive?
+```
+
+If answer is:
+
+```text
+No
+```
+
+Kubernetes:
+
+```text
+Restarts the container
+```
+
+---
+
+## Your Lab
+
+Container created:
+
+```text
+/tmp/healthy
+```
+
+After:
+
+```text
+30 seconds
+```
+
+File removed:
+
+```text
+rm /tmp/healthy
+```
+
+Probe:
+
+```yaml
+livenessProbe:
+  exec:
+    command:
+    - cat
+    - /tmp/healthy
+  periodSeconds: 5
+  failureThreshold: 3
+```
+
+---
+
+## What Happened
+
+Probe checks every:
+
+```text
+5 seconds
+```
+
+File removed after:
+
+```text
+30 seconds
+```
+
+Failures:
+
+```text
+1st failure
+2nd failure
+3rd failure
+```
+
+Kubernetes:
+
+```text
+Container busybox failed liveness probe,
+will be restarted
+```
+
+Observed:
+
+```text
+Restart Count: 13
+```
+
+---
+
+## Liveness Timeline
+
+```text
+Container starts
+      ↓
+Healthy
+      ↓
+Probe succeeds
+      ↓
+File deleted
+      ↓
+Probe fails
+      ↓
+3 consecutive failures
+      ↓
+Container killed
+      ↓
+Container restarted
+```
+
+---
+
+## Interview Question
+
+### What happens when liveness probe fails?
+
+Answer:
+
+```text
+Container is restarted.
+```
+
+---
+
+# 2. Readiness Probe
+
+## Purpose
+
+Answers:
+
+```text
+Can this application receive traffic?
+```
+
+Not:
+
+```text
+Is it alive?
+```
+
+---
+
+## Important
+
+Readiness failure:
+
+```text
+DOES NOT restart container
+```
+
+It only removes Pod from:
+
+```text
+Service endpoints
+```
+
+---
+
+## Your Lab
+
+Before failure:
+
+```bash
+kubectl get endpoints readiness-svc
+```
+
+Output:
+
+```text
+10.244.0.15:80
+```
+
+Pod receiving traffic.
+
+---
+
+You removed:
+
+```bash
+kubectl exec readiness-demo -- rm /usr/share/nginx/html/index.html
+```
+
+Probe:
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /index.html
+    port: 80
+```
+
+---
+
+## Result
+
+Pod:
+
+```text
+READY 0/1
+```
+
+Service:
+
+```text
+ENDPOINTS <none>
+```
+
+Restart count:
+
+```text
+0
+```
+
+Container:
+
+```text
+Still running
+```
+
+---
+
+## Readiness Timeline
+
+```text
+Container starts
+      ↓
+Probe succeeds
+      ↓
+Added to Service endpoints
+      ↓
+Receives traffic
+      ↓
+Probe fails
+      ↓
+Removed from endpoints
+      ↓
+No traffic
+      ↓
+Container keeps running
+```
+
+---
+
+## Interview Question
+
+### What happens when readiness probe fails?
+
+Answer:
+
+```text
+Pod is removed from Service endpoints.
+Container is NOT restarted.
+```
+
+---
+
+# 3. Startup Probe
+
+## Purpose
+
+Answers:
+
+```text
+Has the application finished starting?
+```
+
+Useful for:
+
+```text
+Spring Boot
+Java apps
+Large enterprise apps
+ML workloads
+Database initialization
+```
+
+Applications that need:
+
+```text
+30 seconds
+60 seconds
+2 minutes
+```
+
+to start.
+
+---
+
+## Problem Without Startup Probe
+
+Suppose:
+
+```text
+Application startup = 45 seconds
+```
+
+Liveness probe:
+
+```text
+Checks after 10 seconds
+```
+
+Application not ready yet.
+
+Probe fails.
+
+Kubernetes thinks:
+
+```text
+Application is broken
+```
+
+Kills container.
+
+Container never finishes startup.
+
+---
+
+## Startup Probe Solution
+
+While startup probe runs:
+
+```text
+Liveness Probe Disabled
+Readiness Probe Disabled
+```
+
+Only startup probe matters.
+
+---
+
+## Your Lab
+
+Application startup:
+
+```yaml
+sleep 20
+touch /tmp/started
+```
+
+Startup probe:
+
+```yaml
+startupProbe:
+  exec:
+    command:
+    - cat
+    - /tmp/started
+  periodSeconds: 5
+  failureThreshold: 12
+```
+
+---
+
+## Startup Budget Calculation
+
+Formula:
+
+```text
+periodSeconds × failureThreshold
+```
+
+Your lab:
+
+```text
+5 × 12
+```
+
+Result:
+
+```text
+60 seconds
+```
+
+Kubernetes allows:
+
+```text
+60 seconds
+```
+
+for startup.
+
+Application needs:
+
+```text
+20 seconds
+```
+
+Therefore:
+
+```text
+Startup succeeds
+```
+
+---
+
+## What If failureThreshold = 2 ?
+
+Budget:
+
+```text
+5 × 2
+```
+
+Result:
+
+```text
+10 seconds
+```
+
+Application needs:
+
+```text
+20 seconds
+```
+
+Startup probe fails before app starts.
+
+Result:
+
+```text
+Container killed
+Restarted
+Killed again
+Restarted again
+```
+
+Eventually:
+
+```text
+CrashLoopBackOff
+```
+
+---
+
+## Interview Question
+
+### What happens if startup probe keeps failing?
+
+Answer:
+
+```text
+Container is killed and restarted.
+```
+
+---
+
+# Probe Comparison Table
+
+| Feature                | Liveness              | Readiness                     | Startup                    |
+| ---------------------- | --------------------- | ----------------------------- | -------------------------- |
+| Purpose                | Is app alive?         | Can app receive traffic?      | Has app finished startup?  |
+| Failure Action         | Restart container     | Remove from Service endpoints | Kill and restart container |
+| Restarts Container?    | Yes                   | No                            | Yes                        |
+| Affects Traffic?       | Indirectly            | Yes                           | During startup             |
+| Used For               | Deadlocks, stuck apps | Traffic routing               | Slow startups              |
+| Runs Continuously?     | Yes                   | Yes                           | Only during startup        |
+| Disables Other Probes? | No                    | No                            | Yes                        |
+| Lab Example            | `/tmp/healthy`        | `/index.html`                 | `/tmp/started`             |
+
+---
+
+# Probe Types
+
+Kubernetes supports 3 probe mechanisms.
+
+---
+
+## 1. exec
+
+Runs a command inside container.
+
+Example:
+
+```yaml
+livenessProbe:
+  exec:
+    command:
+    - cat
+    - /tmp/healthy
+```
+
+Used in:
+
+```text
+Your liveness lab
+Your startup lab
+```
+
+---
+
+## 2. httpGet
+
+Makes HTTP request.
+
+Example:
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /
+    port: 80
+```
+
+Used in:
+
+```text
+Your readiness lab
+```
+
+---
+
+## 3. tcpSocket
+
+Checks whether TCP port is open.
+
+Example:
+
+```yaml
+livenessProbe:
+  tcpSocket:
+    port: 3306
+```
+
+Common for:
+
+```text
+MySQL
+Redis
+PostgreSQL
+```
+
+---
+
+# Probe Timing Parameters
+
+---
+
+## initialDelaySeconds
+
+Wait before first probe.
+
+Example:
+
+```yaml
+initialDelaySeconds: 20
+```
+
+Meaning:
+
+```text
+Wait 20 seconds
+Then start probing
+```
+
+---
+
+## periodSeconds
+
+How often probe runs.
+
+Example:
+
+```yaml
+periodSeconds: 5
+```
+
+Meaning:
+
+```text
+Every 5 seconds
+```
+
+---
+
+## timeoutSeconds
+
+Maximum wait time for response.
+
+Example:
+
+```yaml
+timeoutSeconds: 2
+```
+
+Meaning:
+
+```text
+Fail if no response within 2 seconds
+```
+
+---
+
+## successThreshold
+
+How many successes required.
+
+Mostly used with readiness probes.
+
+Example:
+
+```yaml
+successThreshold: 2
+```
+
+Meaning:
+
+```text
+Need 2 successful checks
+```
+
+before becoming Ready.
+
+---
+
+## failureThreshold
+
+Number of failures before action.
+
+Example:
+
+```yaml
+failureThreshold: 3
+```
+
+Meaning:
+
+```text
+3 consecutive failures
+```
+
+before Kubernetes reacts.
+
+---
+
+# Production Best Practices
+
+### Liveness Probe
+
+Use for:
+
+```text
+Deadlocks
+Hung applications
+Frozen processes
+```
+
+Do NOT make it too aggressive.
+
+---
+
+### Readiness Probe
+
+Use for:
+
+```text
+Database connectivity
+Cache connectivity
+Application warm-up
+```
+
+Most important probe in production.
+
+---
+
+### Startup Probe
+
+Use when application startup is slow.
+
+Examples:
+
+```text
+Spring Boot
+Kafka Connect
+Elasticsearch
+Large Java applications
+```
+
+---
+
+# Quick Memory Trick
+
+### Liveness
+
+```text
+Alive?
+```
+
+Fail:
+
+```text
+Restart
+```
+
+---
+
+### Readiness
+
+```text
+Ready?
+```
+
+Fail:
+
+```text
+Remove from traffic
+```
+
+---
+
+### Startup
+
+```text
+Started?
+```
+
+Fail:
+
+```text
+Kill and restart
+```
+
+---
+
+# One-Line Interview Answer
+
+```text
+Liveness checks whether the application is alive and restarts it on failure. Readiness checks whether the application can serve traffic and removes it from Service endpoints on failure without restarting it. Startup checks whether the application has completed startup; until it succeeds, liveness and readiness probes remain disabled.
+```
+
+***
+
+
+
+### Scheduler Doesn't Care About Limits
+
+Many beginners think:
+
+```text
+Scheduler checks Limits
+```
+
+Reality:
+
+```text
+Scheduler checks Requests
+```
+
+Example:
+
+```yaml
+requests:
+  cpu: 100m
+
+limits:
+  cpu: 4
+```
+
+Scheduler reserves:
+
+```text
+100m CPU
+```
+
+Not:
+
+```text
+4 CPUs
+```
+
+💡 I spent a long time thinking Limits affected scheduling.
+
+---
+
+
+
+### CPU and Memory Are Not Equal
+
+Most people assume:
+
+```text
+Resource limit exceeded
+=
+Container dies
+```
+
+Reality:
+
+```text
+CPU Over Limit
+→ Throttled
+
+Memory Over Limit
+→ OOMKilled
+```
+
+Easy Memory Trick:
+
+```text
+CPU = Compressible
+
+Memory = Incompressible
+```
+
+---
+
+
+
+### Readiness Probe Doesn't Check Health
+
+This surprises many people.
+
+People think:
+
+```text
+Readiness
+=
+Application Health
+```
+
+Actually:
+
+```text
+Readiness
+=
+Should traffic be sent here?
+```
+
+When Readiness fails:
+
+```text
+Pod keeps running
+
+No restart
+
+Traffic stops
+```
+
+---
+
+
+
+### Startup Probe Solves Restart Loops
+
+Without Startup Probe:
+
+```text
+Application needs 30s
+
+Liveness starts at 5s
+
+Container gets killed
+```
+
+Result:
+
+```text
+Restart
+Kill
+Restart
+Kill
+CrashLoopBackOff
+```
+
+Startup Probe gives the application time to breathe.
+
+---
+
+
+
+### OOMKilled Is Usually a Configuration Problem
+
+Many people debug application code first.
+
+Often the real issue is:
+
+```text
+Memory Limit Too Small
+```
+
+Example:
+
+```yaml
+limits:
+  memory: 100Mi
+```
+
+Application uses:
+
+```text
+200Mi
+```
+
+Result:
+
+```text
+OOMKilled
+Exit Code 137
+```
+
+Not necessarily an application bug.
+
+---
+
+
+
+### BestEffort Pods Are the First Sacrifice
+
+Node runs out of memory.
+
+Kubernetes chooses victims.
+
+Eviction order:
+
+```text
+BestEffort
+↓
+
+Burstable
+↓
+
+Guaranteed
+```
+
+Meaning:
+
+```text
+No Requests + No Limits
+=
+Highest Risk
+```
+
+---
+
+
+### Readiness Can Save Your Users
+
+A Pod can be:
+
+```text
+Running
+```
+
+but still be:
+
+```text
+Not Ready
+```
+
+That is completely valid.
+
+Kubernetes can:
+
+```text
+Keep Pod Running
+
+Stop Sending Traffic
+```
+
+until the application is actually ready.
+
+This is one of the smartest design decisions in Kubernetes.
+
+---
+
+
+
+### Kubernetes Doesn't Ask "Is the Pod Running?"
+
+It asks three separate questions:
+
+```text
+Liveness
+↓
+Is it alive?
+
+Readiness
+↓
+Can it receive traffic?
+
+Startup
+↓
+Has it finished starting?
+```
+
+That small distinction explains almost every probe-related interview question.
+
+---
+
+
+
+
+
