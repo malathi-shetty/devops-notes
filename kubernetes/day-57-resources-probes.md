@@ -4,7 +4,1199 @@
 
 ---
 
-# A. Detailed Notes (Full Explanation)
+You're right. What I gave earlier was more of a **study guide**.
+
+For DevOps notes that you'll revisit 6 months later, the notes should read like:
+
+* What we learned
+* Why it exists
+* What happened in our lab
+* Commands we ran
+* Output we saw
+* Common mistakes we hit
+* Troubleshooting
+* Interview questions
+* Real-world usage
+
+In other words:
+
+> "If future me forgets Day 57, can I learn the whole topic again from these notes?"
+
+The answer for the previous version is: **not fully**.
+
+---
+
+# Day 57 – Resource Requests, Limits & Probes (Detailed Master Notes)
+
+---
+
+# 1. Why Kubernetes Needs Resources
+
+When we create a Pod, Kubernetes does not automatically know:
+
+* How much CPU the application needs
+* How much memory the application needs
+* Whether the application is healthy
+* Whether the application is ready to serve traffic
+
+Without this information:
+
+* Scheduler cannot make smart placement decisions
+* Node resources may get exhausted
+* Kubernetes cannot automatically recover failed applications
+
+To solve this, Kubernetes provides:
+
+### Resource Management
+
+* Requests
+* Limits
+* QoS Classes
+
+### Health Checking
+
+* Liveness Probe
+* Readiness Probe
+* Startup Probe
+
+---
+
+# 2. Resource Requests and Limits
+
+---
+
+## What is a Request?
+
+A request is the minimum amount of resources guaranteed for a container.
+
+Example:
+
+```yaml
+requests:
+  cpu: 100m
+  memory: 128Mi
+```
+
+Meaning:
+
+```text
+CPU    = 0.1 core
+Memory = 128 MiB
+```
+
+The scheduler uses requests when deciding where a Pod can run.
+
+---
+
+### Think of Requests as
+
+```text
+"I need at least this much."
+```
+
+---
+
+## What is a Limit?
+
+A limit is the maximum amount of resources a container is allowed to consume.
+
+Example:
+
+```yaml
+limits:
+  cpu: 250m
+  memory: 256Mi
+```
+
+Meaning:
+
+```text
+CPU can use up to 0.25 core
+Memory can use up to 256 MiB
+```
+
+The kubelet enforces limits after scheduling.
+
+---
+
+### Think of Limits as
+
+```text
+"You cannot exceed this."
+```
+
+---
+
+# Requests vs Limits
+
+| Feature           | Request | Limit |
+| ----------------- | ------- | ----- |
+| Used by Scheduler | Yes     | No    |
+| Used by Kubelet   | No      | Yes   |
+| Minimum Guarantee | Yes     | No    |
+| Maximum Allowed   | No      | Yes   |
+
+---
+
+# CPU Units
+
+CPU is measured in cores.
+
+```text
+1 CPU = 1 core
+1000m = 1 CPU
+500m = 0.5 CPU
+100m = 0.1 CPU
+```
+
+Examples:
+
+```yaml
+cpu: 100m
+```
+
+means
+
+```text
+0.1 CPU
+```
+
+---
+
+# Memory Units
+
+Memory is measured in binary units.
+
+```text
+Mi = Mebibyte
+Gi = Gibibyte
+```
+
+Examples:
+
+```yaml
+128Mi
+256Mi
+1Gi
+```
+
+---
+
+# Task 1 Lab
+
+Manifest:
+
+```yaml
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+  limits:
+    cpu: 250m
+    memory: 256Mi
+```
+
+Applied:
+
+```bash
+kubectl apply -f resource-demo.yaml
+```
+
+Verified:
+
+```bash
+kubectl describe pod resource-demo
+```
+
+Observed:
+
+```text
+Requests:
+  cpu: 100m
+  memory: 128Mi
+
+Limits:
+  cpu: 250m
+  memory: 256Mi
+```
+
+---
+
+# QoS Classes
+
+Kubernetes assigns a Quality of Service class to every Pod.
+
+---
+
+## Guaranteed
+
+Requests equal limits.
+
+Example:
+
+```yaml
+requests:
+  cpu: 100m
+  memory: 128Mi
+
+limits:
+  cpu: 100m
+  memory: 128Mi
+```
+
+Result:
+
+```text
+QoS = Guaranteed
+```
+
+Highest priority.
+
+---
+
+## Burstable
+
+Requests less than limits.
+
+Example:
+
+```yaml
+requests:
+  cpu: 100m
+  memory: 128Mi
+
+limits:
+  cpu: 250m
+  memory: 256Mi
+```
+
+Result:
+
+```text
+QoS = Burstable
+```
+
+This is what we observed.
+
+---
+
+## BestEffort
+
+No requests.
+
+No limits.
+
+Example:
+
+```yaml
+containers:
+- image: nginx
+```
+
+Result:
+
+```text
+QoS = BestEffort
+```
+
+Lowest priority.
+
+---
+
+# Lab Verification
+
+Observed:
+
+```text
+QoS Class: Burstable
+```
+
+Reason:
+
+```text
+requests < limits
+```
+
+Answer:
+
+```text
+Burstable
+```
+
+---
+
+# QoS Eviction Order
+
+If the node runs out of memory:
+
+Eviction order:
+
+```text
+BestEffort
+↓
+Burstable
+↓
+Guaranteed
+```
+
+Interview favorite.
+
+---
+
+# 3. CPU Limits vs Memory Limits
+
+This is one of the most important Kubernetes concepts.
+
+---
+
+## CPU is Compressible
+
+When CPU limit is exceeded:
+
+```text
+Container is throttled
+```
+
+Container continues running.
+
+No crash.
+
+No restart.
+
+---
+
+Example:
+
+```text
+CPU limit = 250m
+Container uses 400m
+```
+
+Result:
+
+```text
+Kernel throttles CPU usage
+```
+
+---
+
+## Memory is Incompressible
+
+When memory limit is exceeded:
+
+```text
+Container is killed immediately
+```
+
+No throttling.
+
+No warning.
+
+Kernel sends SIGKILL.
+
+---
+
+Example:
+
+```text
+Limit = 100Mi
+Usage = 200Mi
+```
+
+Result:
+
+```text
+OOMKilled
+```
+
+---
+
+# 4. OOMKilled (Out Of Memory)
+
+OOM = Out Of Memory.
+
+Occurs when container exceeds memory limit.
+
+---
+
+# Task 2 Lab
+
+Manifest used:
+
+```yaml
+image: polinux/stress
+```
+
+Limit:
+
+```yaml
+limits:
+  memory: 100Mi
+```
+
+Command:
+
+```yaml
+command: ["stress"]
+
+args:
+- "--vm"
+- "1"
+- "--vm-bytes"
+- "200M"
+- "--vm-hang"
+- "1"
+```
+
+Meaning:
+
+```text
+Allocate 200 MB
+```
+
+Limit:
+
+```text
+100 MiB
+```
+
+Result:
+
+```text
+Memory exceeded
+```
+
+---
+
+Observed:
+
+```text
+CrashLoopBackOff
+```
+
+Observed:
+
+```text
+Exit Code: 137
+```
+
+Observed:
+
+```text
+Restart Count: 3
+```
+
+Observed:
+
+```text
+Reason: Error
+Exit Code: 137
+```
+
+---
+
+# Why 137?
+
+Linux:
+
+```text
+SIGKILL = 9
+```
+
+Exit code formula:
+
+```text
+128 + Signal Number
+```
+
+Therefore:
+
+```text
+128 + 9 = 137
+```
+
+Meaning:
+
+```text
+OOMKilled
+```
+
+---
+
+# Interview Question
+
+Q:
+
+What exit code indicates OOMKilled?
+
+A:
+
+```text
+137
+```
+
+---
+
+# 5. Scheduler & Pending Pods
+
+Scheduler checks:
+
+```text
+Can this node satisfy requests?
+```
+
+If not:
+
+```text
+Pod stays Pending
+```
+
+Forever.
+
+---
+
+# Task 3 Lab
+
+Manifest:
+
+```yaml
+requests:
+  cpu: 100
+  memory: 128Gi
+```
+
+Ridiculously large.
+
+---
+
+Result:
+
+```text
+STATUS = Pending
+```
+
+Observed:
+
+```bash
+kubectl describe pod huge-request
+```
+
+Event:
+
+```text
+0/1 nodes are available:
+1 Insufficient cpu,
+1 Insufficient memory.
+no new claims to deallocate,
+preemption: 0/1 nodes are available:
+1 Preemption is not helpful for scheduling.
+```
+
+---
+
+Verification Answer
+
+```text
+Insufficient cpu
+Insufficient memory
+```
+
+---
+
+# 6. Kubernetes Probes
+
+Probes allow Kubernetes to determine:
+
+```text
+Is app alive?
+Is app ready?
+Has app started?
+```
+
+Three probes exist:
+
+```text
+Liveness
+Readiness
+Startup
+```
+
+---
+
+# Probe Types
+
+A probe can use:
+
+```text
+httpGet
+exec
+tcpSocket
+```
+
+---
+
+# Probe Timing Parameters
+
+Common parameters:
+
+```yaml
+initialDelaySeconds
+periodSeconds
+failureThreshold
+successThreshold
+timeoutSeconds
+```
+
+---
+
+# periodSeconds
+
+How often probe runs.
+
+Example:
+
+```yaml
+periodSeconds: 5
+```
+
+Probe runs every 5 seconds.
+
+---
+
+# failureThreshold
+
+Number of failures before action.
+
+Example:
+
+```yaml
+failureThreshold: 3
+```
+
+Three failures required.
+
+---
+
+# 7. Liveness Probe
+
+Purpose:
+
+```text
+Detect stuck containers
+```
+
+Question:
+
+```text
+Is app alive?
+```
+
+If probe fails:
+
+```text
+Restart container
+```
+
+---
+
+# Task 4 Lab
+
+Container:
+
+```text
+Creates /tmp/healthy
+```
+
+After 30 seconds:
+
+```text
+Deletes /tmp/healthy
+```
+
+Probe:
+
+```yaml
+exec:
+  command:
+  - cat
+  - /tmp/healthy
+```
+
+---
+
+Observed:
+
+```text
+cat: can't open '/tmp/healthy'
+```
+
+Observed:
+
+```text
+Container busybox failed liveness probe,
+will be restarted
+```
+
+Observed:
+
+```text
+Restart Count: 13
+```
+
+Observed:
+
+```text
+CrashLoopBackOff
+```
+
+---
+
+Verification Answer
+
+```text
+Restart Count = 13
+```
+
+---
+
+# Liveness Summary
+
+Failure:
+
+```text
+Restart container
+```
+
+Purpose:
+
+```text
+Self-healing
+```
+
+---
+
+# 8. Readiness Probe
+
+Purpose:
+
+```text
+Can this Pod receive traffic?
+```
+
+Failure:
+
+```text
+NO RESTART
+```
+
+Only remove Pod from Service endpoints.
+
+---
+
+# First Mistake We Hit
+
+Attempted:
+
+```bash
+kubectl expose pod readiness-demo
+```
+
+Error:
+
+```text
+the pod has no labels and cannot be exposed
+```
+
+---
+
+Lesson
+
+Services need labels.
+
+Added:
+
+```yaml
+labels:
+  app: readiness-demo
+```
+
+Fixed.
+
+---
+
+# Task 5 Lab
+
+Readiness probe:
+
+```yaml
+httpGet:
+  path: /index.html
+  port: 80
+```
+
+---
+
+Before deleting file:
+
+Pod:
+
+```text
+READY 1/1
+```
+
+Endpoints:
+
+```text
+10.244.0.15:80
+```
+
+---
+
+Deleted:
+
+```bash
+kubectl exec readiness-demo -- rm /usr/share/nginx/html/index.html
+```
+
+---
+
+After deletion:
+
+Pod:
+
+```text
+READY 0/1
+```
+
+Endpoints:
+
+```text
+ENDPOINTS <none>
+```
+
+Restart Count:
+
+```text
+0
+```
+
+---
+
+Verification Answer
+
+Was container restarted?
+
+```text
+NO
+```
+
+---
+
+# Readiness Summary
+
+Failure:
+
+```text
+Remove from Service endpoints
+```
+
+No restart.
+
+---
+
+# 9. Startup Probe
+
+Purpose:
+
+```text
+Give slow applications time to start
+```
+
+While startup probe runs:
+
+```text
+Liveness disabled
+Readiness disabled
+```
+
+---
+
+# Task 6 Lab
+
+Container:
+
+```bash
+sleep 20
+touch /tmp/started
+sleep 600
+```
+
+Application startup:
+
+```text
+20 seconds
+```
+
+---
+
+Probe:
+
+```yaml
+startupProbe:
+  periodSeconds: 5
+  failureThreshold: 12
+```
+
+---
+
+Budget Calculation
+
+```text
+12 × 5 = 60 seconds
+```
+
+Application starts in:
+
+```text
+20 seconds
+```
+
+Success.
+
+---
+
+Observed:
+
+```text
+Startup probe failed:
+cat: can't open '/tmp/started'
+```
+
+Several times initially.
+
+Expected.
+
+Eventually:
+
+```text
+Ready = True
+Restart Count = 0
+```
+
+---
+
+Challenge Question
+
+What if:
+
+```yaml
+failureThreshold: 2
+```
+
+Budget:
+
+```text
+2 × 5 = 10 seconds
+```
+
+Application needs:
+
+```text
+20 seconds
+```
+
+Result:
+
+```text
+Startup probe fails
+Container killed
+Container restarted
+Container killed again
+CrashLoopBackOff
+```
+
+---
+
+Verification Answer
+
+```text
+Container enters CrashLoopBackOff
+```
+
+---
+
+# Probe Comparison Table
+
+| Probe     | Purpose              | Failure Result        |
+| --------- | -------------------- | --------------------- |
+| Liveness  | Is app alive?        | Restart container     |
+| Readiness | Can receive traffic? | Remove from endpoints |
+| Startup   | Has app started?     | Kill container        |
+
+---
+
+# Important Commands Cheat Sheet
+
+```bash
+kubectl apply -f file.yaml
+
+kubectl get pods
+
+kubectl get pods -w
+
+kubectl describe pod <pod-name>
+
+kubectl logs <pod-name>
+
+kubectl exec <pod-name> -- ls
+
+kubectl exec <pod-name> -- rm <file>
+
+kubectl expose pod <pod-name> --port=80 --name=<svc>
+
+kubectl get svc
+
+kubectl get endpoints <svc>
+
+kubectl delete pod <pod-name>
+
+kubectl delete svc <svc>
+```
+
+---
+
+# Troubleshooting Notes
+
+### Pod Pending
+
+Check:
+
+```bash
+kubectl describe pod
+```
+
+Look for:
+
+```text
+FailedScheduling
+Insufficient cpu
+Insufficient memory
+```
+
+---
+
+### OOMKilled
+
+Check:
+
+```bash
+kubectl describe pod
+```
+
+Look for:
+
+```text
+Exit Code: 137
+```
+
+---
+
+### Readiness Not Working
+
+Check:
+
+```bash
+kubectl get endpoints svc-name
+```
+
+Empty endpoints:
+
+```text
+Probe failing
+```
+
+---
+
+### Service Not Creating
+
+Error:
+
+```text
+Pod has no labels
+```
+
+Fix:
+
+```yaml
+labels:
+  app: my-app
+```
+
+---
+
+### Liveness Restart Loop
+
+Check:
+
+```bash
+kubectl describe pod
+```
+
+Look for:
+
+```text
+Liveness probe failed
+```
+
+---
+
+# Day 57 Verification Answers
+
+### Task 1
+
+```text
+QoS Class = Burstable
+```
+
+### Task 2
+
+```text
+Exit Code = 137
+```
+
+### Task 3
+
+```text
+Insufficient cpu
+Insufficient memory
+```
+
+### Task 4
+
+```text
+Restart Count = 13
+```
+
+### Task 5
+
+```text
+Container restarted?
+NO
+```
+
+### Task 6
+
+```text
+failureThreshold = 2
+→ Startup probe fails
+→ Container restarted
+→ CrashLoopBackOff
+```
+
+
+
+***
 
 ## Why Resource Management Matters
 
