@@ -2341,3 +2341,434 @@ Used to generate repeated nested configuration blocks automatically.
 
 Used to dynamically retrieve available AWS Availability Zones and make infrastructure region-independent.
 
+***
+
+
+# Day 63 Comparison Tables
+
+## 1. Variable vs Local vs Output vs Data Source
+
+| Feature                   | Variable                | Local                   | Output                     | Data Source                |
+| ------------------------- | ----------------------- | ----------------------- | -------------------------- | -------------------------- |
+| Purpose                   | Accept input from user  | Store calculated values | Display values after apply | Fetch existing information |
+| Created By                | User                    | Terraform config        | Terraform config           | Terraform provider         |
+| Mutable?                  | Yes (user can override) | No                      | No                         | No                         |
+| Used For                  | Customization           | Reusable expressions    | Sharing information        | Dynamic lookups            |
+| Example                   | region, instance_type   | name_prefix             | public_ip                  | latest AMI                 |
+| Syntax                    | var.name                | local.name              | output "name"              | data.aws_ami               |
+| Creates Resources?        | ❌ No                    | ❌ No                    | ❌ No                       | ❌ No                       |
+| Reads Existing Resources? | ❌ No                    | ❌ No                    | ❌ No                       | ✅ Yes                      |
+| Day 63 Example            | var.instance_type       | local.common_tags       | instance_public_ip         | aws_ami.amazon_linux       |
+
+### Mental Model
+
+```text
+User Input
+    ↓
+ Variables
+    ↓
+ Locals
+    ↓
+ Resources
+    ↓
+ Outputs
+
+Data Sources
+    ↓
+Provide existing AWS information
+    ↓
+Resources use that information
+```
+
+---
+
+## 2. Resource vs Data Source
+
+| Resource                   | Data Source              |
+| -------------------------- | ------------------------ |
+| Creates something          | Reads something          |
+| Managed by Terraform       | Not managed by Terraform |
+| Changes infrastructure     | Only fetches information |
+| Appears in terraform apply | Read during plan/apply   |
+| Can be destroyed           | Cannot be destroyed      |
+
+### Examples
+
+#### Resource
+
+```hcl
+resource "aws_instance" "main" {
+  ami = "ami-123"
+}
+```
+
+Creates EC2.
+
+---
+
+#### Data Source
+
+```hcl
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+}
+```
+
+Fetches AMI information.
+
+No EC2 is created.
+
+---
+
+## 3. Hardcoded Values vs Variables
+
+### Before Day 63
+
+```hcl
+cidr_block = "10.0.0.0/16"
+instance_type = "t3.micro"
+```
+
+Problem:
+
+```text
+Need to edit code for every environment.
+```
+
+---
+
+### After Day 63
+
+```hcl
+cidr_block = var.vpc_cidr
+instance_type = var.instance_type
+```
+
+Benefit:
+
+```text
+Same code
+Different environments
+```
+
+```text
+Dev
+ └─ t2.micro
+
+Prod
+ └─ t3.small
+```
+
+---
+
+## 4. terraform.tfvars vs prod.tfvars
+
+| Feature              | terraform.tfvars    | prod.tfvars |
+| -------------------- | ------------------- | ----------- |
+| Loaded Automatically | ✅ Yes               | ❌ No        |
+| Use Case             | Default environment | Production  |
+| Command Needed       | None                | -var-file   |
+| Typical Values       | Dev                 | Prod        |
+
+### Dev
+
+```hcl
+project_name = "terraweek"
+environment  = "dev"
+instance_type = "t2.micro"
+```
+
+Run:
+
+```bash
+terraform plan
+```
+
+---
+
+### Prod
+
+```hcl
+project_name = "terraweek"
+environment  = "prod"
+instance_type = "t3.small"
+```
+
+Run:
+
+```bash
+terraform plan -var-file="prod.tfvars"
+```
+
+---
+
+## 5. Variable Precedence
+
+| Priority | Source           |
+| -------- | ---------------- |
+| Lowest   | Variable Default |
+| ↑        | terraform.tfvars |
+| ↑        | *.auto.tfvars    |
+| ↑        | -var-file        |
+| ↑        | TF_VAR_*         |
+| Highest  | -var             |
+
+### Example
+
+Default
+
+```hcl
+instance_type = "t2.micro"
+```
+
+terraform.tfvars
+
+```hcl
+instance_type = "t3.micro"
+```
+
+Environment Variable
+
+```bash
+export TF_VAR_instance_type=t3.small
+```
+
+CLI
+
+```bash
+terraform plan -var="instance_type=t2.nano"
+```
+
+Final value:
+
+```text
+t2.nano
+```
+
+Because CLI wins.
+
+---
+
+## 6. Static AMI vs Data Source AMI
+
+### Before
+
+```hcl
+ami = "ami-123456"
+```
+
+Problem:
+
+```text
+Works only in one region
+Eventually becomes outdated
+```
+
+---
+
+### After
+
+```hcl
+ami = data.aws_ami.amazon_linux.id
+```
+
+Benefits:
+
+```text
+Latest AMI
+Works across regions
+Less maintenance
+Production friendly
+```
+
+---
+
+## 7. Individual Tags vs Locals + merge()
+
+### Before
+
+```hcl
+tags = {
+  Name = "TerraWeek-VPC"
+}
+```
+
+Repeated everywhere.
+
+---
+
+### After
+
+```hcl
+locals {
+  common_tags = {
+    Project = var.project_name
+    Environment = var.environment
+  }
+}
+```
+
+```hcl
+tags = merge(
+  local.common_tags,
+  {
+    Name = "${local.name_prefix}-vpc"
+  }
+)
+```
+
+Benefits:
+
+| Before           | After            |
+| ---------------- | ---------------- |
+| Duplicate tags   | Centralized      |
+| Hard to maintain | Easy to maintain |
+| Inconsistent     | Consistent       |
+
+---
+
+## 8. Static Ports vs Dynamic Block
+
+### Before
+
+```hcl
+ingress {
+  from_port = 22
+}
+
+ingress {
+  from_port = 80
+}
+```
+
+---
+
+### After
+
+```hcl
+dynamic "ingress" {
+  for_each = var.allowed_ports
+}
+```
+
+Values:
+
+```hcl
+allowed_ports = [22,80,443]
+```
+
+Generated automatically.
+
+Benefits:
+
+```text
+Less code
+Reusable
+Environment friendly
+```
+
+---
+
+## 9. String Functions Comparison
+
+| Function  | Purpose         | Example             |
+| --------- | --------------- | ------------------- |
+| upper()   | Uppercase       | TERRAWEEK           |
+| lower()   | Lowercase       | terraweek           |
+| join()    | Combine list    | terra-week-2026     |
+| format()  | Template string | arn:aws:s3:::bucket |
+| replace() | Replace text    | prod → dev          |
+
+---
+
+## 10. Collection Functions Comparison
+
+| Function | Purpose            |
+| -------- | ------------------ |
+| length() | Count items        |
+| lookup() | Get value from map |
+| merge()  | Combine maps       |
+| keys()   | Return keys        |
+| values() | Return values      |
+| toset()  | Remove duplicates  |
+
+---
+
+## 11. Conditionals
+
+### Without Condition
+
+```hcl
+instance_type = "t2.micro"
+```
+
+Always same.
+
+---
+
+### With Condition
+
+```hcl
+instance_type = var.environment == "prod" ? "t3.small" : "t2.micro"
+```
+
+Result:
+
+| Environment | Instance Type |
+| ----------- | ------------- |
+| dev         | t2.micro      |
+| test        | t2.micro      |
+| prod        | t3.small      |
+
+---
+
+## 12. Outputs vs terraform state
+
+| Outputs            | State                       |
+| ------------------ | --------------------------- |
+| User friendly      | Internal                    |
+| Intended for users | Intended for Terraform      |
+| Safe to expose     | Contains sensitive metadata |
+| terraform output   | terraform state show        |
+
+Example:
+
+```bash
+terraform output instance_public_ip
+```
+
+Output:
+
+```text
+100.21.17.7
+```
+
+---
+
+## 13. Issues You Actually Faced During Day 63
+
+| Issue                       | Root Cause                      | Fix                                  |
+| --------------------------- | ------------------------------- | ------------------------------------ |
+| t2.micro unsupported in AZ  | AZ didn't support instance type | Switched AZ / instance type          |
+| S3 bucket already exists    | Global namespace                | Added random_id                      |
+| Invalid variable validation | Used local inside validation    | Changed to var.project_name          |
+| trim() error                | Wrong function                  | Used trimspace()                     |
+| Subnet CIDR conflict        | Existing subnet overlap         | Recreate subnet / use different CIDR |
+| Public DNS empty initially  | AWS metadata not refreshed      | Re-run plan/apply                    |
+
+---
+
+## One-Line Summary of Day 63
+
+| Before Day 63         | After Day 63       |
+| --------------------- | ------------------ |
+| Hardcoded Terraform   | Reusable Terraform |
+| Fixed values          | Variables          |
+| Static tags           | Locals + merge     |
+| Static AMIs           | Data Sources       |
+| Manual outputs lookup | Outputs            |
+| One environment       | Multi-environment  |
+| Repeated code         | Dynamic code       |
+| Region dependent      | Region agnostic    |
+
+
