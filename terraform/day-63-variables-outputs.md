@@ -693,7 +693,7 @@ terraform output reads values from Terraform state.
 
 ---
 
-# Screenshot / Output After Apply
+# Output After Apply
 
 ```text
 Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
