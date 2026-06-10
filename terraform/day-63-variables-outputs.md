@@ -1379,3 +1379,965 @@ ec2-100-21-17-7.us-west-2.compute.amazonaws.com
 This is normal AWS behavior and not a Terraform issue.
 
 Terraform can display the DNS value after a refresh or a subsequent apply.
+
+***
+
+
+## 1. Variables (`variables.tf`)
+
+### Variables Used
+
+```hcl
+variable "region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-west-2"
+}
+
+variable "vpc_cidr" {
+  description = "CIDR block for VPC"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "subnet_cidr" {
+  description = "CIDR block for subnet"
+  type        = string
+  default     = "10.0.1.0/24"
+}
+
+variable "instance_type" {
+  description = "EC2 instance type"
+  type        = string
+  default     = "t2.micro"
+}
+
+variable "project_name" {
+  description = "Project name"
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.project_name)) > 0
+    error_message = "Project name cannot be empty."
+  }
+}
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "dev"
+}
+
+variable "allowed_ports" {
+  description = "Ports allowed in Security Group"
+  type        = list(number)
+  default     = [22, 80, 443]
+}
+
+variable "extra_tags" {
+  description = "Additional tags"
+  type        = map(string)
+  default     = {}
+}
+```
+
+---
+
+## What are Variables?
+
+Variables make Terraform configurations reusable and flexible.
+
+Instead of hardcoding values, Terraform accepts values through variables.
+
+Example:
+
+```hcl
+instance_type = var.instance_type
+```
+
+---
+
+## Five Variable Types in Terraform
+
+| Type   | Example            |
+| ------ | ------------------ |
+| string | `"dev"`            |
+| number | `8080`             |
+| bool   | `true`             |
+| list   | `[22,80,443]`      |
+| map    | `{Owner="Deepak"}` |
+
+### String
+
+Stores text values.
+
+```hcl
+variable "environment" {
+  type    = string
+  default = "dev"
+}
+```
+
+---
+
+### Number
+
+Stores numeric values.
+
+```hcl
+variable "instance_count" {
+  type    = number
+  default = 2
+}
+```
+
+---
+
+### Bool
+
+Stores true/false values.
+
+```hcl
+variable "enable_monitoring" {
+  type    = bool
+  default = true
+}
+```
+
+---
+
+### List
+
+Stores ordered collections.
+
+```hcl
+variable "allowed_ports" {
+  type    = list(number)
+  default = [22,80,443]
+}
+```
+
+---
+
+### Map
+
+Stores key-value pairs.
+
+```hcl
+variable "extra_tags" {
+  type    = map(string)
+  default = {}
+}
+```
+
+---
+
+## Variable Validation
+
+Terraform can validate user input before creating infrastructure.
+
+Example:
+
+```hcl
+variable "project_name" {
+  type = string
+
+  validation {
+    condition     = length(trimspace(var.project_name)) > 0
+    error_message = "Project name cannot be empty."
+  }
+}
+```
+
+Benefits:
+
+* Prevents invalid inputs
+* Improves reliability
+* Reduces deployment failures
+
+---
+
+## Variable Files
+
+### terraform.tfvars
+
+```hcl
+project_name  = "terraweek"
+environment   = "dev"
+instance_type = "t2.micro"
+```
+
+Automatically loaded by Terraform.
+
+Commands:
+
+```bash
+terraform plan
+terraform apply
+```
+
+---
+
+### prod.tfvars
+
+```hcl
+project_name  = "terraweek"
+environment   = "prod"
+instance_type = "t3.small"
+
+vpc_cidr      = "10.1.0.0/16"
+subnet_cidr   = "10.1.1.0/24"
+```
+
+Commands:
+
+```bash
+terraform plan -var-file="prod.tfvars"
+terraform apply -var-file="prod.tfvars"
+```
+
+---
+
+# Variable Precedence
+
+When the same variable exists in multiple locations, Terraform follows a precedence order.
+
+## Lowest → Highest Priority
+
+```text
+Default Values
+      ↓
+TF_VAR_* Environment Variables
+      ↓
+terraform.tfvars
+      ↓
+*.auto.tfvars
+      ↓
+-var-file
+      ↓
+-var
+```
+
+---
+
+## Example 1 – Default Value
+
+```hcl
+variable "instance_type" {
+  default = "t2.micro"
+}
+```
+
+Result:
+
+```text
+t2.micro
+```
+
+---
+
+## Example 2 – terraform.tfvars Overrides Default
+
+```hcl
+instance_type = "t3.micro"
+```
+
+Result:
+
+```text
+t3.micro
+```
+
+---
+
+## Example 3 – prod.tfvars Overrides terraform.tfvars
+
+```bash
+terraform plan -var-file="prod.tfvars"
+```
+
+Result:
+
+```text
+t3.small
+```
+
+---
+
+## Example 4 – CLI Variable Overrides Everything
+
+```bash
+terraform plan -var="instance_type=t2.nano"
+```
+
+Result:
+
+```text
+t2.nano
+```
+
+---
+
+## Example 5 – Environment Variable
+
+```bash
+export TF_VAR_environment="staging"
+```
+
+Terraform maps:
+
+```text
+TF_VAR_environment
+```
+
+to
+
+```text
+var.environment
+```
+
+Result:
+
+```text
+staging
+```
+
+---
+
+## Easy Precedence Table
+
+| Priority (High → Low) | Source               | Example                                  | Result |
+| --------------------- | -------------------- | ---------------------------------------- | ------ |
+| 1                     | `-var`               | `terraform plan -var="environment=qa"`   | qa     |
+| 2                     | `-var-file`          | `terraform plan -var-file="prod.tfvars"` | prod   |
+| 3                     | `terraform.tfvars`   | `environment="stage"`                    | stage  |
+| 4                     | `TF_VAR_environment` | `uat`                                    | uat    |
+| 5                     | Default              | `default="dev"`                          | dev    |
+
+---
+
+# Outputs
+
+Outputs display useful information after Terraform creates resources.
+
+Example:
+
+```hcl
+output "instance_public_ip" {
+  value = aws_instance.main.public_ip
+}
+```
+
+Commands:
+
+```bash
+terraform output
+```
+
+Displays all outputs.
+
+```bash
+terraform output instance_public_ip
+```
+
+Displays specific output.
+
+```bash
+terraform output -json
+```
+
+Displays JSON output.
+
+---
+
+## Outputs Created
+
+```text
+vpc_id
+subnet_id
+instance_id
+instance_public_ip
+instance_public_dns
+security_group_id
+```
+
+---
+
+## Apply Output
+
+```text
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+instance_id = "i-0331c04ecaf33c341"
+instance_public_dns = ""
+instance_public_ip = "100.21.17.7"
+security_group_id = "sg-0513d120f717a69c2"
+subnet_id = "subnet-015f4f5323ce56036"
+vpc_id = "vpc-0acc47bd462520288"
+```
+
+Verification:
+
+```bash
+terraform output instance_public_ip
+```
+
+Output:
+
+```text
+100.21.17.7
+```
+
+Verified successfully.
+
+---
+
+# Data Sources
+
+Data sources fetch existing information.
+
+They do not create resources.
+
+Example:
+
+```hcl
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+}
+```
+
+Used for:
+
+* Latest AMI lookup
+* Availability Zones
+* AWS Account ID
+
+Examples:
+
+```hcl
+data "aws_ami" "amazon_linux"
+data "aws_availability_zones" "available"
+data "aws_caller_identity" "current"
+```
+
+---
+
+# Resource vs Data Source
+
+| Resource                 | Data Source                 |
+| ------------------------ | --------------------------- |
+| Creates infrastructure   | Reads existing information  |
+| Managed by Terraform     | Read-only                   |
+| Can be created/destroyed | Cannot be created/destroyed |
+| Example: aws_instance    | Example: aws_ami            |
+
+### Resource Example
+
+```hcl
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+}
+```
+
+Creates a VPC.
+
+---
+
+### Data Source Example
+
+```hcl
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+}
+```
+
+Reads AMI information.
+
+---
+
+# Locals
+
+Locals store reusable calculated values.
+
+Example:
+
+```hcl
+locals {
+  name_prefix = "${var.project_name}-${var.environment}"
+
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+```
+
+Benefits:
+
+* Reduces duplication
+* Improves readability
+* Centralized naming
+* Consistent tagging
+
+---
+
+# Variable vs Local vs Data vs Output
+
+| Component   | Purpose                   | Example                        |
+| ----------- | ------------------------- | ------------------------------ |
+| Variable    | User Input                | `var.instance_type`            |
+| Local       | Internal Calculation      | `local.name_prefix`            |
+| Data Source | Read Existing Information | `data.aws_ami.amazon_linux.id` |
+| Output      | Show Results              | `output "vpc_id"`              |
+
+---
+
+## Easy Memory Trick
+
+```text
+Variable
+   ↓
+Input from User
+
+Local
+   ↓
+Internal Calculation
+
+Data
+   ↓
+Read Existing Information
+
+Resource
+   ↓
+Create Infrastructure
+
+Output
+   ↓
+Show Results
+```
+
+---
+
+# Five Useful Terraform Functions
+
+## 1. upper()
+
+Converts text to uppercase.
+
+```hcl
+upper("terraweek")
+```
+
+Output:
+
+```text
+TERRAWEEK
+```
+
+Use Case:
+
+* Tags
+* Resource names
+* Standardized naming
+
+---
+
+## 2. join()
+
+Combines strings.
+
+```hcl
+join("-", ["terra","week","2026"])
+```
+
+Output:
+
+```text
+terra-week-2026
+```
+
+Use Case:
+
+* Naming resources
+* Generating tags
+
+---
+
+## 3. lookup()
+
+Fetches values from a map.
+
+```hcl
+lookup(
+  {
+    dev  = "t2.micro"
+    prod = "t3.small"
+  },
+  "dev"
+)
+```
+
+Output:
+
+```text
+t2.micro
+```
+
+Use Case:
+
+* Environment-specific settings
+
+---
+
+## 4. length()
+
+Returns collection size.
+
+```hcl
+length(["a","b","c"])
+```
+
+Output:
+
+```text
+3
+```
+
+Use Case:
+
+* Validation
+* Conditional logic
+
+---
+
+## 5. cidrsubnet()
+
+Creates subnet CIDRs.
+
+```hcl
+cidrsubnet("10.0.0.0/16",8,1)
+```
+
+Output:
+
+```text
+10.0.1.0/24
+```
+
+Use Case:
+
+* VPC network planning
+
+---
+
+## Additional Functions Practiced
+
+### format()
+
+```hcl
+format("arn:aws:s3:::%s","my-bucket")
+```
+
+Output:
+
+```text
+arn:aws:s3:::my-bucket
+```
+
+---
+
+### toset()
+
+```hcl
+toset(["a","b","a"])
+```
+
+Output:
+
+```text
+["a","b"]
+```
+
+Removes duplicates.
+
+---
+
+### merge()
+
+```hcl
+merge(
+  local.common_tags,
+  {
+    Name = "server"
+  }
+)
+```
+
+Output:
+
+```hcl
+{
+  Project     = "terraweek"
+  Environment = "dev"
+  Name        = "server"
+}
+```
+
+Used for centralized tagging.
+
+---
+
+# Conditional Expressions
+
+Terraform supports if-else style logic.
+
+Syntax:
+
+```hcl
+condition ? true_value : false_value
+```
+
+Example:
+
+```hcl
+instance_type = var.environment == "prod" ? "t3.small" : "t3.micro"
+```
+
+Result:
+
+```text
+prod  → t3.small
+dev   → t3.micro
+```
+
+Use Cases:
+
+* Environment-based sizing
+* Dynamic configurations
+* Cost optimization
+
+---
+
+# Day 63 Key Learning
+
+1. Variables make Terraform reusable.
+2. Validation prevents bad input.
+3. tfvars files separate environment configurations.
+4. Variable precedence determines final values.
+5. Outputs expose important resource information.
+6. Data sources fetch existing AWS information.
+7. Locals reduce duplication and standardize tagging.
+8. Functions simplify string, collection and network operations.
+9. Conditional expressions enable dynamic infrastructure decisions.
+10. Terraform configurations become reusable, scalable and environment-aware.
+
+***
+
+
+
+# Terraform Console
+
+Terraform Console is an interactive command-line tool used to test Terraform expressions, variables, functions, and calculations without creating or modifying infrastructure.
+
+It helps validate logic before running `terraform plan` or `terraform apply`.
+
+## Command
+
+```bash
+terraform console
+```
+
+## Examples
+
+### String Functions
+
+```hcl
+upper("terraweek")
+```
+
+Output:
+
+```text
+TERRAWEEK
+```
+
+```hcl
+join("-", ["terra","week","2026"])
+```
+
+Output:
+
+```text
+terra-week-2026
+```
+
+---
+
+### Collection Functions
+
+```hcl
+length(["a","b","c"])
+```
+
+Output:
+
+```text
+3
+```
+
+```hcl
+lookup({dev="t2.micro", prod="t3.small"}, "dev")
+```
+
+Output:
+
+```text
+t2.micro
+```
+
+---
+
+### Networking Function
+
+```hcl
+cidrsubnet("10.0.0.0/16", 8, 1)
+```
+
+Output:
+
+```text
+10.0.1.0/24
+```
+
+---
+
+## Benefits of Terraform Console
+
+* Test Terraform functions quickly
+* Validate expressions before deployment
+* Learn Terraform syntax interactively
+* Debug variable values and calculations
+* Reduce errors before running apply
+
+---
+
+# Dynamic Blocks
+
+Dynamic blocks allow Terraform to generate repeated nested blocks automatically using loops.
+
+They help avoid writing the same configuration multiple times.
+
+In this project, a dynamic block was used to create multiple Security Group ingress rules from the `allowed_ports` variable.
+
+## Example
+
+```hcl
+dynamic "ingress" {
+  for_each = var.allowed_ports
+
+  content {
+    from_port   = ingress.value
+    to_port     = ingress.value
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+```
+
+If:
+
+```hcl
+allowed_ports = [22, 80, 443]
+```
+
+Terraform automatically creates:
+
+```text
+Port 22 Rule
+Port 80 Rule
+Port 443 Rule
+```
+
+without manually writing three separate ingress blocks.
+
+## Benefits of Dynamic Blocks
+
+* Eliminates duplicate code
+* Improves maintainability
+* Makes configurations reusable
+* Supports variable-driven infrastructure
+* Useful for Security Groups, IAM policies, and Route Tables
+
+---
+
+# Availability Zone Selection Using Data Source
+
+Instead of hardcoding an Availability Zone, Terraform can dynamically fetch all available Availability Zones in the selected AWS region.
+
+This makes the configuration portable and reusable across different AWS regions.
+
+## Availability Zone Data Source
+
+```hcl
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+```
+
+This retrieves all available Availability Zones in the current region.
+
+Example Output:
+
+```text
+us-west-2a
+us-west-2b
+us-west-2c
+us-west-2d
+```
+
+---
+
+## Using the First Availability Zone
+
+```hcl
+availability_zone = data.aws_availability_zones.available.names[0]
+```
+
+Terraform selects the first available Availability Zone from the list.
+
+Example:
+
+```text
+us-west-2a
+```
+
+---
+
+## Benefits
+
+* No hardcoded Availability Zones
+* Works across different AWS regions
+* Increases portability
+* Improves automation
+* Reduces manual configuration changes
+
+---
+
+## Summary
+
+### Terraform Console
+
+Used to test Terraform functions, expressions, and calculations interactively.
+
+### Dynamic Blocks
+
+Used to generate repeated nested configuration blocks automatically.
+
+### Availability Zone Data Source
+
+Used to dynamically retrieve available AWS Availability Zones and make infrastructure region-independent.
+
