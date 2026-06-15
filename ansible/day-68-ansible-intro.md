@@ -15990,4 +15990,6179 @@ Dynamic Inventory
     ↓
 Production Deployments
 ```
+***
+
+Excellent choices. These 6 parts are what usually transform someone from:
+
+```text
+"I know Ansible commands"
+```
+
+to
+
+```text
+"I can explain, design, troubleshoot,
+and operate Ansible in production."
+```
+
+I would recommend doing them in this order:
+
+```text
+Part 17 → Real Deployment Project
+Part 19 → Ansible vs Terraform
+Part 20 → Jenkins + Ansible
+Part 21 → Kubernetes + Ansible
+Part 22 → Production Troubleshooting
+Part 18 → 100+ Interview Questions
+```
+
+Why?
+
+Because interview questions become much easier after you've seen real deployment patterns.
+
+---
+
+# Part 17: End-to-End Real Deployment Project
+
+## Deploying an Application to Production Using Ansible
+
+This is the closest thing to what happens in a real company.
+
+---
+
+# Big Picture
+
+Imagine your company has:
+
+```text
+2 Load Balancers
+
+4 Web Servers
+
+2 App Servers
+
+1 Database
+```
+
+Architecture:
+
+```text
+Users
+  |
+  v
+Load Balancer
+  |
+  +----- Web1
+  |
+  +----- Web2
+  |
+  +----- Web3
+  |
+  +----- Web4
+         |
+         v
+     App Servers
+         |
+         v
+      Database
+```
+
+---
+
+# Business Requirement
+
+Developer says:
+
+```text
+New Version Ready
+```
+
+Need deployment.
+
+But:
+
+```text
+No Downtime
+```
+
+---
+
+# Beginner Thinking
+
+```text
+SSH
+
+Copy Files
+
+Restart
+
+Hope It Works
+```
+
+Very risky.
+
+---
+
+# Professional Thinking
+
+```text
+Automated
+Repeatable
+Auditable
+Rollback Ready
+```
+
+---
+
+# Project Structure
+
+```text
+ansible-project/
+
+|
++--- inventory/
+
+|
++--- group_vars/
+
+|
++--- roles/
+
+|      |
+|      +--- app/
+
+|      +--- nginx/
+
+|
++--- playbooks/
+
+|
++--- templates/
+
+|
++--- vault/
+```
+
+---
+
+# Deployment Flow
+
+## Step 1
+
+Discover Servers
+
+```text
+Inventory
+```
+
+---
+
+Visual
+
+```text
+Inventory
+
+↓
+
+Web Servers
+
+↓
+
+App Servers
+```
+
+---
+
+## Step 2
+
+Load Variables
+
+```yaml
+app_version: v2.5.1
+```
+
+---
+
+Purpose:
+
+```text
+Deploy Version Dynamically
+```
+
+---
+
+## Step 3
+
+Decrypt Secrets
+
+Vault:
+
+```yaml
+db_password
+api_token
+```
+
+---
+
+Visual
+
+```text
+Vault
+
+↓
+
+Decrypt
+
+↓
+
+Use Secrets
+```
+
+---
+
+## Step 4
+
+Remove Node From Load Balancer
+
+Very important.
+
+---
+
+Before deployment:
+
+```text
+LB
+
+ |
+ +--- Web1
+
+ +--- Web2
+
+ +--- Web3
+
+ +--- Web4
+```
+
+---
+
+Remove:
+
+```text
+Web1
+```
+
+---
+
+Result:
+
+```text
+LB
+
+ |
+ +--- Web2
+
+ +--- Web3
+
+ +--- Web4
+```
+
+Traffic continues.
+
+---
+
+# Why?
+
+Because:
+
+```text
+Users Should Not Hit
+Server Being Updated
+```
+
+---
+
+# Step 5
+
+Backup Existing Version
+
+Example:
+
+```text
+/app/current
+
+↓
+
+/app/backup
+```
+
+---
+
+Memory Trick
+
+```text
+Always Create Escape Route
+```
+
+---
+
+# Step 6
+
+Deploy New Artifact
+
+Example:
+
+```text
+myapp-v2.5.1.jar
+```
+
+or
+
+```text
+Docker Image
+```
+
+---
+
+Visual
+
+```text
+Old Version
+
+↓
+
+Replace
+
+↓
+
+New Version
+```
+
+---
+
+# Step 7
+
+Update Configuration
+
+Template:
+
+```jinja2
+DB_HOST={{ db_host }}
+APP_VERSION={{ version }}
+```
+
+---
+
+Generates:
+
+```text
+DB_HOST=10.0.1.10
+APP_VERSION=v2.5.1
+```
+
+---
+
+# Step 8
+
+Restart Service
+
+Handler executes.
+
+```text
+Config Changed?
+
+↓
+
+Restart
+```
+
+---
+
+# Step 9
+
+Health Check
+
+Example:
+
+```bash
+curl localhost:8080/health
+```
+
+Expected:
+
+```text
+200 OK
+```
+
+---
+
+Visual
+
+```text
+Deploy
+
+↓
+
+Restart
+
+↓
+
+Health Check
+
+↓
+
+Healthy?
+```
+
+---
+
+# Step 10
+
+Add Server Back
+
+```text
+Web1 Returns To LB
+```
+
+---
+
+Visual
+
+```text
+LB
+
+ |
+ +--- Web1
+
+ +--- Web2
+
+ +--- Web3
+
+ +--- Web4
+```
+
+---
+
+# Step 11
+
+Move To Next Server
+
+Using:
+
+```yaml
+serial: 1
+```
+
+---
+
+Meaning:
+
+```text
+Update One Server At A Time
+```
+
+---
+
+# Full Production Flow
+
+```text
+Inventory
+     ↓
+Vault
+     ↓
+Remove From LB
+     ↓
+Backup
+     ↓
+Deploy
+     ↓
+Template
+     ↓
+Restart
+     ↓
+Health Check
+     ↓
+Add Back To LB
+     ↓
+Next Server
+```
+
+---
+
+# Why Companies Use Ansible
+
+Because deployment becomes:
+
+```text
+Predictable
+
+Repeatable
+
+Safe
+```
+
+instead of:
+
+```text
+Manual
+
+Error Prone
+
+Stressful
+```
+
+---
+
+# Ultimate Memory Trick
+
+Think of Ansible Deployment like a hospital surgery:
+
+```text
+Take Patient To Operating Room
+
+↓
+
+Remove From Public Area
+
+↓
+
+Backup Records
+
+↓
+
+Perform Surgery
+
+↓
+
+Check Health
+
+↓
+
+Return Patient
+
+↓
+
+Next Patient
+```
+
+That's exactly what a rolling deployment does.
+
+---
+
+## What You'll Learn Next
+
+**Part 19: Ansible vs Terraform Deep Dive**
+
+This is one of the most important DevOps interview topics because many engineers confuse:
+
+```text
+Terraform
+=
+Provision Infrastructure
+
+Ansible
+=
+Configure Infrastructure
+```
+
+But the real relationship is much deeper. We'll break it down with architecture diagrams, state management, idempotency comparisons, and real production workflows.
+
+***
+
+# Part 19: Ansible vs Terraform Deep Dive
+
+## The Most Confused DevOps Interview Topic
+
+Almost every DevOps beginner eventually asks:
+
+```text
+If Terraform can create servers
+
+Why do we need Ansible?
+```
+
+Or:
+
+```text
+If Ansible can install software
+
+Why do we need Terraform?
+```
+
+The answer is:
+
+```text
+They solve different problems.
+```
+
+---
+
+# The 10-Year-Old Explanation
+
+Imagine building a new school.
+
+Question:
+
+```text
+Who builds the school building?
+
+Who arranges desks,
+chairs,
+whiteboards,
+projectors?
+```
+
+Different jobs.
+
+---
+
+# Real Life Analogy
+
+Construction Company
+
+```text
+Build Land
+
+Build Building
+
+Build Rooms
+```
+
+---
+
+Interior Designer
+
+```text
+Arrange Furniture
+
+Paint Walls
+
+Install Equipment
+```
+
+---
+
+Visual
+
+```text
+Terraform
+=
+Construction Company
+
+Ansible
+=
+Interior Designer
+```
+
+---
+
+# Core Purpose
+
+Terraform:
+
+```text
+Creates Infrastructure
+```
+
+Examples:
+
+```text
+EC2
+
+VPC
+
+Subnets
+
+Security Groups
+
+Load Balancers
+
+RDS
+
+S3
+```
+
+---
+
+Ansible:
+
+```text
+Configures Infrastructure
+```
+
+Examples:
+
+```text
+Install Nginx
+
+Install Docker
+
+Create Users
+
+Deploy Applications
+
+Update Config Files
+
+Restart Services
+```
+
+---
+
+# Visual
+
+```text
+Terraform
+
+↓
+
+Creates Server
+
+↓
+
+Server Exists
+
+-----------------
+
+Ansible
+
+↓
+
+Uses Server
+
+↓
+
+Configures Server
+```
+
+---
+
+# The Biggest Mental Model
+
+Terraform asks:
+
+```text
+What infrastructure should exist?
+```
+
+---
+
+Ansible asks:
+
+```text
+What should run inside it?
+```
+
+---
+
+# Example
+
+Need:
+
+```text
+3 Web Servers
+
+1 Database
+
+1 Load Balancer
+```
+
+---
+
+Terraform does:
+
+```text
+Create VPC
+
+Create Subnets
+
+Create EC2
+
+Create Security Groups
+
+Create RDS
+
+Create Load Balancer
+```
+
+---
+
+Result
+
+```text
+Infrastructure Exists
+```
+
+---
+
+Then Ansible does:
+
+```text
+Install Nginx
+
+Install Java
+
+Deploy Application
+
+Update Config
+
+Start Services
+```
+
+---
+
+Result
+
+```text
+Application Works
+```
+
+---
+
+# Visual
+
+```text
+Terraform
+
+↓
+
+Infrastructure
+
+↓
+
+EC2
+VPC
+RDS
+LB
+
+↓
+
+Ansible
+
+↓
+
+Software
+
+↓
+
+Nginx
+Java
+Docker
+App
+```
+
+---
+
+# Why Terraform Is Better At Infrastructure
+
+Imagine:
+
+```text
+Need 200 EC2 Instances
+```
+
+Terraform:
+
+```text
+AWS API
+
+↓
+
+Create 200 Instances
+```
+
+directly.
+
+---
+
+Ansible:
+
+```text
+Can Do It
+
+But Not Its Specialty
+```
+
+---
+
+Terraform was designed for:
+
+```text
+Infrastructure Provisioning
+```
+
+---
+
+# Why Ansible Is Better At Configuration
+
+Imagine:
+
+```text
+Install Docker
+
+Create User
+
+Copy Config
+
+Restart Service
+```
+
+Terraform can do some of this.
+
+But:
+
+```text
+Ansible Was Built For It
+```
+
+---
+
+Visual
+
+```text
+Terraform
+
+Infrastructure Expert
+
+----------------
+
+Ansible
+
+Configuration Expert
+```
+
+---
+
+# State File (Huge Interview Topic)
+
+This is where Terraform becomes unique.
+
+---
+
+# What Is Terraform State?
+
+Terraform remembers:
+
+```text
+What It Created
+```
+
+inside:
+
+```text
+terraform.tfstate
+```
+
+---
+
+Visual
+
+```text
+Terraform Code
+
+      |
+
+      v
+
+State File
+
+      |
+
+      v
+
+AWS Reality
+```
+
+---
+
+# Why?
+
+Suppose:
+
+```text
+Desired
+
+3 EC2
+```
+
+---
+
+Reality:
+
+```text
+2 EC2
+```
+
+---
+
+Terraform knows:
+
+```text
+One Missing
+
+Create It
+```
+
+because state exists.
+
+---
+
+# Memory Trick
+
+```text
+Terraform State
+
+=
+
+Memory Book
+```
+
+---
+
+# Does Ansible Have State?
+
+No.
+
+This is one of the biggest differences.
+
+---
+
+Ansible:
+
+```text
+Connect
+
+Execute
+
+Disconnect
+```
+
+---
+
+Visual
+
+```text
+Ansible
+
+↓
+
+SSH
+
+↓
+
+Task
+
+↓
+
+Done
+```
+
+---
+
+No permanent state file.
+
+---
+
+# Interview Question
+
+Why doesn't Ansible need a state file?
+
+Answer:
+
+```text
+Ansible works by connecting
+to systems and evaluating
+current state directly,
+instead of maintaining
+a separate infrastructure state file.
+```
+
+---
+
+# Desired State Comparison
+
+Terraform:
+
+```text
+I Want 3 EC2
+```
+
+---
+
+Ansible:
+
+```text
+I Want Nginx Installed
+```
+
+---
+
+Both are:
+
+```text
+Desired State Tools
+```
+
+but at different layers.
+
+---
+
+Visual
+
+```text
+Terraform
+
+Infrastructure Desired State
+
+----------------
+
+Ansible
+
+Configuration Desired State
+```
+
+---
+
+# Idempotency Comparison
+
+Huge interview topic.
+
+---
+
+What is idempotency?
+
+```text
+Run Again
+
+Same Result
+```
+
+---
+
+Terraform Example
+
+Current:
+
+```text
+3 EC2
+```
+
+Desired:
+
+```text
+3 EC2
+```
+
+Apply:
+
+```text
+No Change
+```
+
+---
+
+Ansible Example
+
+Current:
+
+```text
+Nginx Installed
+```
+
+Desired:
+
+```text
+Nginx Installed
+```
+
+Run:
+
+```text
+No Change
+```
+
+---
+
+Both support:
+
+```text
+Idempotency
+```
+
+---
+
+# Execution Method
+
+Terraform:
+
+```text
+Uses Cloud APIs
+```
+
+---
+
+Visual
+
+```text
+Terraform
+
+↓
+
+AWS API
+
+↓
+
+Create Resources
+```
+
+---
+
+Ansible:
+
+```text
+Uses SSH/WinRM
+```
+
+---
+
+Visual
+
+```text
+Ansible
+
+↓
+
+SSH
+
+↓
+
+Execute Modules
+```
+
+---
+
+# Real Production Workflow
+
+This is how companies actually use them.
+
+---
+
+Step 1
+
+Terraform
+
+```text
+Create VPC
+```
+
+---
+
+Step 2
+
+Terraform
+
+```text
+Create EC2
+```
+
+---
+
+Step 3
+
+Terraform
+
+```text
+Create Security Groups
+```
+
+---
+
+Step 4
+
+Terraform
+
+```text
+Create Load Balancer
+```
+
+---
+
+Infrastructure complete.
+
+---
+
+Step 5
+
+Ansible
+
+```text
+Install Nginx
+```
+
+---
+
+Step 6
+
+Ansible
+
+```text
+Deploy Application
+```
+
+---
+
+Step 7
+
+Ansible
+
+```text
+Configure Services
+```
+
+---
+
+Visual
+
+```text
+Terraform
+     ↓
+Infrastructure
+     ↓
+Ansible
+     ↓
+Configuration
+     ↓
+Application Ready
+```
+
+---
+
+# Why Not Use Only Terraform?
+
+Because Terraform becomes ugly when doing:
+
+```text
+Large Config Files
+
+Service Management
+
+OS Configuration
+
+Complex Deployments
+```
+
+---
+
+Terraform excels at:
+
+```text
+Cloud Resources
+```
+
+---
+
+Ansible excels at:
+
+```text
+Operating Systems
+```
+
+---
+
+# Why Not Use Only Ansible?
+
+Because creating:
+
+```text
+VPC
+
+Subnets
+
+NAT
+
+Route Tables
+
+Load Balancers
+```
+
+using Ansible is possible,
+
+but Terraform is purpose-built for that.
+
+---
+
+# Interview Scenario
+
+Interviewer asks:
+
+```text
+How would you build a new environment?
+```
+
+Strong Answer:
+
+```text
+Use Terraform to provision
+infrastructure such as VPCs,
+subnets, EC2 instances,
+security groups, databases,
+and load balancers.
+
+Then use Ansible to configure
+the servers, install software,
+deploy applications,
+manage users,
+and maintain configurations.
+```
+
+---
+
+# Real DevOps Pipeline
+
+```text
+Git Push
+    |
+    v
+
+Terraform
+
+    |
+    v
+
+Infrastructure
+
+    |
+    v
+
+Ansible
+
+    |
+    v
+
+Configuration
+
+    |
+    v
+
+Application Deployment
+
+    |
+    v
+
+Health Checks
+```
+
+---
+
+# Ultimate Revision Sheet
+
+```text
+Terraform
+=
+Infrastructure Provisioning
+
+Ansible
+=
+Configuration Management
+
+Terraform State
+=
+Infrastructure Memory
+
+Ansible
+=
+Agentless Execution
+
+Terraform
+=
+Cloud Resources
+
+Ansible
+=
+Operating Systems
+
+Terraform
+=
+API Driven
+
+Ansible
+=
+SSH Driven
+
+Terraform
+=
+Creates Servers
+
+Ansible
+=
+Configures Servers
+```
+
+---
+
+# One-Line Memory Map
+
+```text
+Terraform
+     ↓
+Infrastructure
+     ↓
+Servers Exist
+     ↓
+Ansible
+     ↓
+Configuration
+     ↓
+Application Ready
+```
+
+---
+
+# The Golden Interview Answer
+
+If someone asks:
+
+```text
+When do you use Terraform and Ansible together?
+```
+
+Answer:
+
+```text
+Terraform provisions the infrastructure.
+Ansible configures the infrastructure.
+Terraform creates the house.
+Ansible furnishes and operates the house.
+```
+
+That single sentence explains the relationship better than most 30-minute explanations.
+
+---
+
+## Next Part
+
+```text
+Part 20
+↓
+Ansible + Jenkins CI/CD Pipeline
+```
+
+Where we'll build the complete flow:
+
+```text
+Developer
+   ↓
+Git Push
+   ↓
+Jenkins
+   ↓
+Terraform
+   ↓
+Ansible
+   ↓
+Deployment
+   ↓
+Production
+```
+
+This is one of the most common real-world DevOps architectures.
+
+***
+
+
+# Part 20: Ansible + Jenkins CI/CD Pipeline
+
+## How Real Companies Deploy Applications Automatically
+
+Up to now:
+
+```text
+Developer Writes Code
+```
+
+and
+
+```text
+Ansible Deploys Code
+```
+
+But a question remains:
+
+```text
+Who starts Ansible?
+```
+
+Do engineers manually run:
+
+```bash
+ansible-playbook deploy.yml
+```
+
+every day?
+
+Large companies don't.
+
+They use:
+
+```text
+CI/CD Pipeline
+```
+
+---
+
+# The Big Picture
+
+Imagine:
+
+```text
+Developer Fixes Bug
+```
+
+Should deployment require:
+
+```text
+Open Laptop
+
+SSH
+
+Run Commands
+
+Hope Nothing Breaks
+```
+
+No.
+
+Too slow.
+
+Too risky.
+
+---
+
+Instead:
+
+```text
+Git Push
+
+↓
+
+Pipeline Runs
+
+↓
+
+Testing
+
+↓
+
+Build
+
+↓
+
+Deploy
+
+↓
+
+Production
+```
+
+Automatically.
+
+---
+
+# What Is CI/CD?
+
+CI means:
+
+```text
+Continuous Integration
+```
+
+CD means:
+
+```text
+Continuous Delivery
+or
+Continuous Deployment
+```
+
+---
+
+# 10-Year-Old Analogy
+
+Imagine school homework.
+
+Without CI/CD:
+
+```text
+Teacher Checks
+
+Every Notebook
+
+Manually
+```
+
+Very slow.
+
+---
+
+With CI/CD:
+
+```text
+Homework Submitted
+
+↓
+
+Automatic Checking
+
+↓
+
+Results Generated
+```
+
+---
+
+# Where Jenkins Fits
+
+Jenkins is:
+
+```text
+Automation Orchestrator
+```
+
+Think:
+
+```text
+Project Manager
+```
+
+---
+
+Visual
+
+```text
+Developer
+
+    |
+
+    v
+
+Jenkins
+
+    |
+
+    +---- Build
+
+    +---- Test
+
+    +---- Deploy
+
+    +---- Notify
+```
+
+---
+
+# Jenkins + Ansible Relationship
+
+Think:
+
+```text
+Jenkins
+=
+Boss
+
+Ansible
+=
+Worker
+```
+
+---
+
+Jenkins says:
+
+```text
+Deploy Version 2.5
+```
+
+---
+
+Ansible says:
+
+```text
+Okay
+
+I'll Configure Servers
+```
+
+---
+
+Visual
+
+```text
+Jenkins
+
+↓
+
+Triggers
+
+↓
+
+Ansible
+
+↓
+
+Deployment
+```
+
+---
+
+# End-to-End Flow
+
+Let's deploy a Java application.
+
+---
+
+Step 1
+
+Developer writes code.
+
+```text
+Developer
+
+↓
+
+Code Changes
+```
+
+---
+
+Step 2
+
+Push to Git.
+
+```bash
+git push origin main
+```
+
+---
+
+Visual
+
+```text
+Laptop
+
+↓
+
+Git Repository
+```
+
+---
+
+# Step 3
+
+Webhook Triggers Jenkins
+
+Git says:
+
+```text
+New Commit Arrived
+```
+
+---
+
+Visual
+
+```text
+Git
+
+↓
+
+Webhook
+
+↓
+
+Jenkins
+```
+
+---
+
+# What Is Webhook?
+
+Think:
+
+```text
+Automatic Phone Call
+```
+
+---
+
+Without webhook:
+
+```text
+Jenkins
+
+"Anything New?"
+
+"Anything New?"
+
+"Anything New?"
+```
+
+---
+
+With webhook:
+
+```text
+Git
+
+"Hey Jenkins
+
+New Code!"
+```
+
+---
+
+Much faster.
+
+---
+
+# Step 4
+
+Jenkins Starts Pipeline
+
+Pipeline means:
+
+```text
+Series Of Automated Steps
+```
+
+---
+
+Visual
+
+```text
+Build
+
+↓
+
+Test
+
+↓
+
+Package
+
+↓
+
+Deploy
+```
+
+---
+
+# Step 5
+
+Build Application
+
+Java Example:
+
+```bash
+mvn clean package
+```
+
+---
+
+Purpose:
+
+```text
+Convert Source Code
+
+↓
+
+Runnable Artifact
+```
+
+---
+
+Visual
+
+```text
+Java Files
+
+↓
+
+Build
+
+↓
+
+app.jar
+```
+
+---
+
+# Step 6
+
+Run Tests
+
+Example:
+
+```text
+Unit Tests
+
+Integration Tests
+```
+
+---
+
+Why?
+
+Because:
+
+```text
+Broken Code
+
+Should Never Reach Production
+```
+
+---
+
+Visual
+
+```text
+Build
+
+↓
+
+Tests
+
+↓
+
+Pass?
+
+YES → Continue
+
+NO → Stop
+```
+
+---
+
+# Step 7
+
+Store Artifact
+
+Artifact examples:
+
+```text
+app.jar
+
+war file
+
+docker image
+```
+
+---
+
+Visual
+
+```text
+Application
+
+↓
+
+Artifact Repository
+
+↓
+
+Stored
+```
+
+---
+
+Common repositories:
+
+* Nexus Repository Manager
+* JFrog Artifactory
+
+---
+
+# Step 8
+
+Jenkins Calls Ansible
+
+Example:
+
+```bash
+ansible-playbook deploy.yml
+```
+
+---
+
+Visual
+
+```text
+Jenkins
+
+↓
+
+Ansible Playbook
+
+↓
+
+Servers
+```
+
+---
+
+# What Happens Next?
+
+Ansible performs:
+
+```text
+Remove From LB
+
+↓
+
+Backup
+
+↓
+
+Deploy
+
+↓
+
+Restart
+
+↓
+
+Health Check
+
+↓
+
+Add Back
+```
+
+Exactly what we learned in Part 17.
+
+---
+
+# Full Deployment Diagram
+
+```text
+Developer
+
+    |
+
+    v
+
+Git
+
+    |
+
+    v
+
+Webhook
+
+    |
+
+    v
+
+Jenkins
+
+    |
+
+    v
+
+Build
+
+    |
+
+    v
+
+Tests
+
+    |
+
+    v
+
+Artifact
+
+    |
+
+    v
+
+Ansible
+
+    |
+
+    v
+
+Servers
+
+    |
+
+    v
+
+Production
+```
+
+---
+
+# Jenkins Pipeline Stages
+
+A professional pipeline often contains:
+
+```text
+Stage 1
+Checkout
+
+Stage 2
+Build
+
+Stage 3
+Unit Tests
+
+Stage 4
+Security Scan
+
+Stage 5
+Package
+
+Stage 6
+Upload Artifact
+
+Stage 7
+Deploy Using Ansible
+
+Stage 8
+Health Check
+
+Stage 9
+Notify Team
+```
+
+---
+
+Visual
+
+```text
+Checkout
+     ↓
+Build
+     ↓
+Test
+     ↓
+Security
+     ↓
+Package
+     ↓
+Deploy
+     ↓
+Verify
+     ↓
+Notify
+```
+
+---
+
+# Why Security Scan?
+
+Imagine developer accidentally commits:
+
+```text
+Critical Vulnerability
+```
+
+Pipeline catches it early.
+
+---
+
+Visual
+
+```text
+Code
+
+↓
+
+Security Scan
+
+↓
+
+Safe?
+
+YES → Continue
+
+NO → Stop
+```
+
+---
+
+# Deployment Environments
+
+Most companies don't deploy directly to production.
+
+---
+
+Flow
+
+```text
+Dev
+
+↓
+
+Test
+
+↓
+
+UAT
+
+↓
+
+Production
+```
+
+---
+
+Visual
+
+```text
+Developer
+
+↓
+
+Dev
+
+↓
+
+QA
+
+↓
+
+UAT
+
+↓
+
+Production
+```
+
+---
+
+# Why Multiple Environments?
+
+Because:
+
+```text
+Production
+
+=
+
+Real Customers
+```
+
+---
+
+Need confidence first.
+
+---
+
+# How Ansible Handles Environments
+
+Inventory example:
+
+```text
+inventory/
+
+├── dev
+├── qa
+├── prod
+```
+
+---
+
+Deploy command:
+
+```bash
+ansible-playbook deploy.yml -i inventory/prod
+```
+
+---
+
+Meaning:
+
+```text
+Same Playbook
+
+Different Environment
+```
+
+---
+
+# Blue-Green Deployment
+
+Very common interview topic.
+
+---
+
+Normal Deployment
+
+```text
+Production
+
+↓
+
+Update Existing Servers
+```
+
+Risky.
+
+---
+
+Blue-Green Deployment
+
+Two environments:
+
+```text
+Blue
+
+Green
+```
+
+---
+
+Visual
+
+```text
+Users
+
+ |
+
+ v
+
+Blue Environment
+(Current)
+```
+
+---
+
+Deploy new version to:
+
+```text
+Green Environment
+```
+
+first.
+
+---
+
+Visual
+
+```text
+Blue → v1
+
+Green → v2
+```
+
+---
+
+After verification:
+
+```text
+Switch Traffic
+```
+
+---
+
+Visual
+
+```text
+Before
+
+Users → Blue
+
+------------
+
+After
+
+Users → Green
+```
+
+---
+
+# Canary Deployment
+
+Another important strategy.
+
+---
+
+Instead of:
+
+```text
+100% Traffic
+```
+
+---
+
+Send:
+
+```text
+5% Traffic
+```
+
+first.
+
+---
+
+Visual
+
+```text
+Users
+
+↓
+
+5% → New Version
+
+95% → Old Version
+```
+
+---
+
+If healthy:
+
+```text
+20%
+
+50%
+
+100%
+```
+
+---
+
+# Rollback
+
+Most important production concept.
+
+---
+
+Suppose deployment fails.
+
+Need:
+
+```text
+Return To Old Version
+```
+
+immediately.
+
+---
+
+Visual
+
+```text
+v1
+
+↓
+
+Deploy v2
+
+↓
+
+Problem
+
+↓
+
+Rollback
+
+↓
+
+v1
+```
+
+---
+
+# Why Backups Matter
+
+Remember Part 17:
+
+```text
+Backup
+
+↓
+
+Deploy
+```
+
+Now you see why.
+
+---
+
+Without backup:
+
+```text
+Rollback Impossible
+```
+
+---
+
+# Notifications
+
+After deployment:
+
+Jenkins often sends messages to:
+
+* Slack
+* Microsoft Teams
+* Email
+
+---
+
+Visual
+
+```text
+Deployment
+
+↓
+
+Success
+
+↓
+
+Notify Team
+```
+
+---
+
+# Real Enterprise Architecture
+
+```text
+Developer
+     ↓
+Git
+     ↓
+Webhook
+     ↓
+Jenkins
+     ↓
+Build
+     ↓
+Test
+     ↓
+Security Scan
+     ↓
+Artifact Repository
+     ↓
+Ansible
+     ↓
+Load Balancer
+     ↓
+Web Servers
+     ↓
+Application
+     ↓
+Users
+```
+
+---
+
+# Ultimate Revision Sheet
+
+```text
+Git
+=
+Source Code
+
+Webhook
+=
+Automatic Trigger
+
+Jenkins
+=
+Pipeline Orchestrator
+
+Build
+=
+Create Artifact
+
+Test
+=
+Validate Code
+
+Artifact
+=
+Deployable Package
+
+Ansible
+=
+Deployment Engine
+
+Blue-Green
+=
+Two Environments
+
+Canary
+=
+Small Traffic First
+
+Rollback
+=
+Return To Old Version
+```
+
+---
+
+# One-Line Memory Map
+
+```text
+Developer
+     ↓
+Git Push
+     ↓
+Webhook
+     ↓
+Jenkins
+     ↓
+Build
+     ↓
+Test
+     ↓
+Artifact
+     ↓
+Ansible
+     ↓
+Deploy
+     ↓
+Health Check
+     ↓
+Production
+```
+
+
+***
+
+# Part 21: Ansible + Kubernetes
+
+## How Ansible Fits Into The Kubernetes World
+
+This is where many DevOps engineers get confused.
+
+They learn Kubernetes and think:
+
+```text
+Kubernetes replaces Ansible
+```
+
+Wrong.
+
+Or they learn Ansible and think:
+
+```text
+Ansible replaces Kubernetes
+```
+
+Also wrong.
+
+---
+
+# The Big Question
+
+Imagine we have:
+
+```text
+10 EC2 Instances
+```
+
+running:
+
+```text
+Nginx
+Java
+Docker
+```
+
+Ansible is perfect.
+
+---
+
+But what if we have:
+
+```text
+500 Containers
+
+Auto Scaling
+
+Self Healing
+
+Rolling Updates
+```
+
+Now we need:
+
+```text
+Kubernetes
+```
+
+---
+
+# 10-Year-Old Analogy
+
+Imagine a city.
+
+Terraform:
+
+```text
+Builds Land
+Roads
+Buildings
+```
+
+---
+
+Ansible:
+
+```text
+Installs Furniture
+Computers
+Electricity
+```
+
+---
+
+Kubernetes:
+
+```text
+Runs The Entire City Daily
+
+Manages Workers
+
+Replaces Sick Workers
+
+Handles Traffic
+```
+
+---
+
+Visual
+
+```text
+Terraform
+     ↓
+Infrastructure
+
+Ansible
+     ↓
+Configuration
+
+Kubernetes
+     ↓
+Application Operations
+```
+
+---
+
+# What Problem Does Kubernetes Solve?
+
+Before Kubernetes:
+
+```text
+Application
+
+↓
+
+Server
+```
+
+---
+
+If server dies:
+
+```text
+Application Dies
+```
+
+---
+
+Visual
+
+```text
+Server Crash
+
+↓
+
+Website Down
+```
+
+---
+
+Kubernetes says:
+
+```text
+I Will Keep The App Running
+```
+
+---
+
+Visual
+
+```text
+Container Dies
+
+↓
+
+Kubernetes Detects
+
+↓
+
+Creates New Container
+```
+
+---
+
+# Kubernetes Core Components
+
+Think of Kubernetes as a school.
+
+---
+
+# Control Plane
+
+Principal's Office
+
+Responsible for:
+
+```text
+Decision Making
+```
+
+---
+
+# Worker Nodes
+
+Classrooms
+
+Responsible for:
+
+```text
+Running Applications
+```
+
+---
+
+Visual
+
+```text
+Control Plane
+
+      |
+
+      +---- Worker 1
+
+      +---- Worker 2
+
+      +---- Worker 3
+```
+
+---
+
+# Pod
+
+Most important Kubernetes concept.
+
+---
+
+What is a Pod?
+
+Think:
+
+```text
+Protective Box
+```
+
+around a container.
+
+---
+
+Visual
+
+```text
+Pod
+
+ |
+
+ +---- Container
+```
+
+---
+
+Real Example
+
+```text
+Pod
+
+ |
+
+ +---- Nginx Container
+```
+
+---
+
+# Deployment
+
+Suppose:
+
+```text
+Need 3 Copies
+```
+
+of application.
+
+---
+
+Without Deployment:
+
+```text
+Create Manually
+```
+
+---
+
+With Deployment:
+
+```text
+Kubernetes Maintains
+3 Copies
+```
+
+---
+
+Visual
+
+```text
+Deployment
+
+      |
+
+      +---- Pod 1
+
+      +---- Pod 2
+
+      +---- Pod 3
+```
+
+---
+
+# Service
+
+Pods have changing IPs.
+
+Problem:
+
+```text
+Users Need Stable Access
+```
+
+---
+
+Solution:
+
+```text
+Service
+```
+
+---
+
+Visual
+
+```text
+Users
+
+  |
+
+  v
+
+Service
+
+  |
+
+  +---- Pod1
+
+  +---- Pod2
+
+  +---- Pod3
+```
+
+---
+
+# How Ansible Helps Kubernetes
+
+Many beginners think:
+
+```text
+Kubernetes Runs Apps
+
+Therefore Ansible Is Useless
+```
+
+Wrong.
+
+---
+
+Ansible is often used for:
+
+```text
+Provisioning Kubernetes Nodes
+
+Installing Kubernetes
+
+Configuring Nodes
+
+Managing Cluster Settings
+
+Deploying Kubernetes Resources
+```
+
+---
+
+Visual
+
+```text
+Terraform
+
+↓
+
+Create EC2
+
+↓
+
+Ansible
+
+↓
+
+Install Kubernetes
+
+↓
+
+Create Cluster
+
+↓
+
+Kubernetes
+
+↓
+
+Run Applications
+```
+
+---
+
+# Real Production Flow
+
+Step 1
+
+Terraform:
+
+```text
+Create 6 EC2
+```
+
+---
+
+Step 2
+
+Ansible:
+
+```text
+Install Docker
+
+Install kubeadm
+
+Install kubelet
+
+Install kubectl
+```
+
+---
+
+Step 3
+
+Ansible:
+
+```text
+Initialize Cluster
+```
+
+---
+
+Step 4
+
+Kubernetes:
+
+```text
+Run Applications
+```
+
+---
+
+Visual
+
+```text
+Terraform
+     ↓
+EC2
+     ↓
+Ansible
+     ↓
+K8s Cluster
+     ↓
+Applications
+```
+
+---
+
+# Kubernetes Installation Using Ansible
+
+Without Ansible:
+
+Imagine:
+
+```text
+50 Nodes
+```
+
+Need:
+
+```text
+Install Docker
+
+Install kubelet
+
+Configure Network
+
+Configure Runtime
+```
+
+50 times.
+
+Nightmare.
+
+---
+
+With Ansible:
+
+```yaml
+hosts: kubernetes_nodes
+```
+
+---
+
+One execution.
+
+All nodes configured.
+
+---
+
+Visual
+
+```text
+Ansible
+
+↓
+
+Node1
+
+Node2
+
+Node3
+
+Node4
+
+Node5
+```
+
+---
+
+# Deploying Applications
+
+Can Ansible deploy applications into Kubernetes?
+
+Yes.
+
+---
+
+Example Flow
+
+```text
+Ansible
+
+↓
+
+Apply Manifest
+
+↓
+
+Kubernetes
+
+↓
+
+Creates Pods
+```
+
+---
+
+Visual
+
+```text
+Ansible
+
+↓
+
+deployment.yaml
+
+↓
+
+Kubernetes API
+
+↓
+
+Pods Created
+```
+
+---
+
+# Rolling Updates Comparison
+
+## Ansible Rolling Update
+
+```yaml
+serial: 1
+```
+
+Updates:
+
+```text
+Server By Server
+```
+
+---
+
+Visual
+
+```text
+Web1
+
+↓
+
+Web2
+
+↓
+
+Web3
+```
+
+---
+
+## Kubernetes Rolling Update
+
+Updates:
+
+```text
+Pod By Pod
+```
+
+Automatically.
+
+---
+
+Visual
+
+```text
+Pod1 v1
+
+↓
+
+Pod1 v2
+
+↓
+
+Pod2 v2
+
+↓
+
+Pod3 v2
+```
+
+---
+
+# Self Healing
+
+Ansible:
+
+```text
+Runs
+
+Finishes
+
+Leaves
+```
+
+---
+
+Kubernetes:
+
+```text
+Always Watching
+```
+
+---
+
+Visual
+
+```text
+Container Dies
+
+↓
+
+Kubernetes Notices
+
+↓
+
+Creates New Container
+```
+
+---
+
+This is one of the biggest differences.
+
+---
+
+# Ansible vs Kubernetes
+
+| Ansible                  | Kubernetes              |
+| ------------------------ | ----------------------- |
+| Configuration Management | Container Orchestration |
+| Uses SSH                 | Uses Kubernetes API     |
+| Agentless                | Cluster Based           |
+| Runs Tasks               | Continuously Watches    |
+| Configures Servers       | Runs Containers         |
+| Finishes Execution       | Always Active           |
+
+---
+
+# Real Enterprise Architecture
+
+Modern companies often use:
+
+```text
+Terraform
+     ↓
+Cloud Infrastructure
+     ↓
+Ansible
+     ↓
+Kubernetes Cluster Setup
+     ↓
+Kubernetes
+     ↓
+Application Operations
+```
+
+---
+
+# GitOps Evolution
+
+Traditional:
+
+```text
+Git
+ ↓
+Jenkins
+ ↓
+Ansible
+ ↓
+Servers
+```
+
+---
+
+Modern Kubernetes:
+
+```text
+Git
+ ↓
+GitOps Tool
+ ↓
+Kubernetes
+ ↓
+Pods
+```
+
+---
+
+Common GitOps tools include:
+
+* Argo CD
+* Flux
+
+---
+
+# Where Ansible Still Wins
+
+Even in Kubernetes environments, Ansible is commonly used for:
+
+```text
+OS Hardening
+
+User Management
+
+Patch Management
+
+Cluster Installation
+
+Node Configuration
+
+Certificate Management
+
+Network Configuration
+```
+
+---
+
+# Complete DevOps Mental Model
+
+This is one of the most important diagrams in your DevOps journey:
+
+```text
+Git
+  ↓
+
+Jenkins
+  ↓
+
+Terraform
+  ↓
+
+VPC
+EC2
+Load Balancer
+  ↓
+
+Ansible
+  ↓
+
+Docker
+Kubernetes
+Configuration
+  ↓
+
+Kubernetes
+  ↓
+
+Pods
+Services
+Deployments
+  ↓
+
+Users
+```
+
+---
+
+# Ultimate Revision Sheet
+
+```text
+Terraform
+=
+Creates Infrastructure
+
+Ansible
+=
+Configures Infrastructure
+
+Docker
+=
+Packages Application
+
+Kubernetes
+=
+Runs Containers At Scale
+
+Pod
+=
+Smallest Deployable Unit
+
+Deployment
+=
+Maintains Desired Pods
+
+Service
+=
+Stable Access To Pods
+
+Control Plane
+=
+Brain
+
+Worker Node
+=
+Runs Pods
+
+Self Healing
+=
+Automatic Recovery
+
+Rolling Update
+=
+Gradual Pod Replacement
+```
+
+---
+
+# One-Line Memory Map
+
+```text
+Terraform
+     ↓
+Infrastructure
+     ↓
+Ansible
+     ↓
+Kubernetes Setup
+     ↓
+Pods
+     ↓
+Services
+     ↓
+Users
+```
+
+---
+
+## Next Part
+
+```text
+Part 22
+↓
+Real Production Troubleshooting
+```
+
+This is where you'll learn what actually breaks at 2 AM:
+
+```text
+Permission Denied
+SSH Failures
+Inventory Problems
+Playbook Errors
+Vault Issues
+Template Bugs
+Handler Problems
+Deployment Failures
+Kubernetes Node Issues
+CI/CD Failures
+```
+
+and, more importantly:
+
+```text
+How experienced DevOps engineers think
+when troubleshooting them.
+```
+
+***
+
+# Part 22: Real Production Troubleshooting
+
+## How Senior DevOps Engineers Think at 2 AM
+
+This is the part that separates:
+
+```text
+Junior Engineer
+=
+Knows Commands
+```
+
+from
+
+```text
+Senior Engineer
+=
+Finds Root Cause
+```
+
+---
+
+# The Biggest Mistake Beginners Make
+
+Server breaks.
+
+They immediately try:
+
+```bash
+restart
+restart
+restart
+restart
+```
+
+---
+
+Senior engineers do:
+
+```text
+Observe
+
+↓
+
+Gather Evidence
+
+↓
+
+Identify Root Cause
+
+↓
+
+Fix
+
+↓
+
+Verify
+```
+
+---
+
+# The Golden Troubleshooting Rule
+
+Never start with:
+
+```text
+What Should I Restart?
+```
+
+Start with:
+
+```text
+What Changed?
+```
+
+---
+
+# Production Thinking Model
+
+Whenever something breaks:
+
+```text
+What Changed?
+
+↓
+
+Where Is Failure?
+
+↓
+
+Can I Reproduce?
+
+↓
+
+What Logs Exist?
+
+↓
+
+Root Cause?
+
+↓
+
+Fix
+
+↓
+
+Verify
+```
+
+---
+
+# Troubleshooting Layer Model
+
+Most outages belong to one layer.
+
+```text
+Layer 1
+Network
+
+Layer 2
+SSH
+
+Layer 3
+OS
+
+Layer 4
+Ansible
+
+Layer 5
+Application
+
+Layer 6
+Database
+
+Layer 7
+Load Balancer
+```
+
+---
+
+# Memory Trick
+
+Think:
+
+```text
+Water Pipeline
+```
+
+---
+
+Visual
+
+```text
+User
+
+↓
+
+Load Balancer
+
+↓
+
+Server
+
+↓
+
+Application
+
+↓
+
+Database
+```
+
+Problem exists somewhere.
+
+Find where.
+
+---
+
+# Problem 1: ansible all -m ping Fails
+
+---
+
+Error
+
+```text
+UNREACHABLE
+```
+
+---
+
+Most beginners think:
+
+```text
+Ansible Broken
+```
+
+Wrong.
+
+---
+
+Check:
+
+```text
+Can SSH Work?
+```
+
+---
+
+Manual Test
+
+```bash
+ssh ec2-user@server-ip
+```
+
+---
+
+If SSH fails:
+
+```text
+Not Ansible Problem
+
+SSH Problem
+```
+
+---
+
+Visual
+
+```text
+Ansible
+
+↓
+
+SSH
+
+↓
+
+Server
+
+If SSH Broken
+
+Everything Broken
+```
+
+---
+
+# Troubleshooting Flow
+
+```text
+Can Ping Server?
+
+↓
+
+Port 22 Open?
+
+↓
+
+Correct User?
+
+↓
+
+Correct Key?
+
+↓
+
+SSH Works?
+```
+
+---
+
+# Problem 2: Permission Denied (publickey)
+
+Most common AWS issue.
+
+---
+
+Meaning:
+
+```text
+Server Rejected Key
+```
+
+---
+
+Possible Causes
+
+```text
+Wrong Key
+
+Wrong User
+
+Wrong Permissions
+```
+
+---
+
+Check
+
+```bash
+chmod 400 key.pem
+```
+
+---
+
+Check User
+
+Amazon Linux:
+
+```bash
+ec2-user
+```
+
+Ubuntu:
+
+```bash
+ubuntu
+```
+
+---
+
+Memory Trick
+
+```text
+Wrong Key
+
+=
+
+Wrong House Key
+```
+
+---
+
+# Problem 3: Host Not Found
+
+Example
+
+```text
+webserver1
+
+UNREACHABLE
+```
+
+---
+
+Usually:
+
+```text
+Inventory Issue
+```
+
+---
+
+Check
+
+```bash
+ansible-inventory --graph
+```
+
+---
+
+Visual
+
+```text
+Inventory
+
+↓
+
+Host Exists?
+
+NO
+
+↓
+
+Fix Inventory
+```
+
+---
+
+# Problem 4: Playbook Syntax Error
+
+Error:
+
+```text
+YAML Parsing Failed
+```
+
+---
+
+Common Cause
+
+Bad indentation.
+
+---
+
+Wrong
+
+```yaml
+tasks:
+- name: Install nginx
+   yum:
+```
+
+---
+
+Right
+
+```yaml
+tasks:
+  - name: Install nginx
+    yum:
+```
+
+---
+
+Memory Trick
+
+```text
+YAML
+
+=
+
+Python
+
+Indentation Matters
+```
+
+---
+
+# Problem 5: Variable Not Defined
+
+Error
+
+```text
+VARIABLE IS UNDEFINED
+```
+
+---
+
+Example
+
+```yaml
+{{ app_version }}
+```
+
+doesn't exist.
+
+---
+
+Check
+
+```bash
+ansible-inventory --list
+```
+
+or
+
+```yaml
+debug:
+  var: app_version
+```
+
+---
+
+Visual
+
+```text
+Variable Requested
+
+↓
+
+Variable Exists?
+
+NO
+
+↓
+
+Failure
+```
+
+---
+
+# Problem 6: Template Not Rendering Correctly
+
+Template:
+
+```jinja2
+DB={{ db_host }}
+```
+
+---
+
+Output:
+
+```text
+DB=
+```
+
+---
+
+Problem:
+
+```text
+Variable Empty
+```
+
+---
+
+Debug:
+
+```yaml
+- debug:
+    var: db_host
+```
+
+---
+
+# Problem 7: Handler Not Running
+
+Many beginners panic.
+
+---
+
+Playbook succeeds.
+
+Service not restarted.
+
+---
+
+Why?
+
+Handlers run only when:
+
+```text
+Changed = True
+```
+
+---
+
+Visual
+
+```text
+Task
+
+↓
+
+Changed?
+
+YES
+
+↓
+
+Handler Runs
+
+------------
+
+NO
+
+↓
+
+Skip Handler
+```
+
+---
+
+# Problem 8: Vault Password Error
+
+Error
+
+```text
+Decryption Failed
+```
+
+---
+
+Possible Causes
+
+```text
+Wrong Vault Password
+
+Wrong Vault File
+
+Corrupted Vault
+```
+
+---
+
+Check
+
+```bash
+ansible-vault view secrets.yml
+```
+
+---
+
+If view fails:
+
+```text
+Vault Issue Confirmed
+```
+
+---
+
+# Problem 9: Package Installation Fails
+
+Example
+
+```yaml
+dnf:
+  name: nginx
+```
+
+---
+
+Error:
+
+```text
+Package Not Found
+```
+
+---
+
+Check:
+
+```text
+Repository Available?
+
+Internet Available?
+
+Correct Package Name?
+```
+
+---
+
+Visual
+
+```text
+Install Request
+
+↓
+
+Repository
+
+↓
+
+Package Exists?
+
+YES -> Install
+
+NO -> Fail
+```
+
+---
+
+# Problem 10: Service Won't Start
+
+Example
+
+```yaml
+service:
+  name: nginx
+  state: started
+```
+
+---
+
+But:
+
+```text
+FAILED
+```
+
+---
+
+Check manually
+
+```bash
+systemctl status nginx
+```
+
+---
+
+Then:
+
+```bash
+journalctl -xe
+```
+
+---
+
+Memory Trick
+
+```text
+Ansible Reports
+
+System Logs Explain
+```
+
+---
+
+# Problem 11: Deployment Succeeded But Website Down
+
+Most dangerous situation.
+
+---
+
+Ansible says:
+
+```text
+SUCCESS
+```
+
+---
+
+Users say:
+
+```text
+Website Dead
+```
+
+---
+
+Possible Causes
+
+```text
+Service Not Running
+
+Wrong Config
+
+Load Balancer Issue
+
+Firewall Issue
+
+Application Crash
+```
+
+---
+
+Visual
+
+```text
+Deployment
+
+↓
+
+Success
+
+↓
+
+Health Check
+
+↓
+
+Failure
+```
+
+---
+
+This is why production deployments include:
+
+```text
+Health Checks
+```
+
+---
+
+# Problem 12: Rolling Deployment Stops Midway
+
+Example
+
+```yaml
+serial: 2
+```
+
+---
+
+Batch 1 succeeds.
+
+Batch 2 fails.
+
+---
+
+Good News
+
+```text
+Ansible Stops
+```
+
+---
+
+Meaning:
+
+```text
+Not All Servers Broken
+```
+
+---
+
+Visual
+
+```text
+Server1 OK
+
+Server2 OK
+
+------------
+
+Server3 FAIL
+
+↓
+
+Stop
+```
+
+---
+
+# Problem 13: High CPU During Ansible Run
+
+Cause:
+
+```text
+Too Many Forks
+```
+
+---
+
+Example
+
+```ini
+forks=500
+```
+
+---
+
+Control Node becomes overloaded.
+
+---
+
+Fix:
+
+```text
+Reduce Forks
+```
+
+---
+
+Memory Trick
+
+```text
+Forks
+
+=
+
+Workers
+
+Too Many Workers
+
+↓
+
+Chaos
+```
+
+---
+
+# Problem 14: Dynamic Inventory Returns No Hosts
+
+AWS Inventory Example.
+
+---
+
+Check:
+
+```text
+AWS Credentials
+
+IAM Permissions
+
+Region
+```
+
+---
+
+Visual
+
+```text
+Ansible
+
+↓
+
+AWS API
+
+↓
+
+Permission Denied?
+
+↓
+
+No Inventory
+```
+
+---
+
+# Problem 15: Jenkins Deployment Fails
+
+Pipeline:
+
+```text
+Build
+
+↓
+
+Deploy
+```
+
+fails.
+
+---
+
+Always ask:
+
+```text
+Build Failed?
+
+or
+
+Deployment Failed?
+```
+
+---
+
+Visual
+
+```text
+Pipeline
+
+↓
+
+Build
+
+↓
+
+Deploy
+
+↓
+
+Health Check
+```
+
+Identify exact stage.
+
+---
+
+# Problem 16: Kubernetes Pods CrashLoopBackOff
+
+Common K8s issue.
+
+---
+
+Meaning:
+
+```text
+Container Starts
+
+↓
+
+Container Crashes
+
+↓
+
+Restart
+
+↓
+
+Crash
+
+↓
+
+Restart
+```
+
+---
+
+Visual
+
+```text
+Start
+
+↓
+
+Crash
+
+↓
+
+Restart
+
+↓
+
+Crash
+```
+
+---
+
+Check
+
+```bash
+kubectl logs pod-name
+```
+
+---
+
+Then
+
+```bash
+kubectl describe pod pod-name
+```
+
+---
+
+# Problem 17: Database Connection Failure
+
+Application log:
+
+```text
+Cannot Connect To DB
+```
+
+---
+
+Check:
+
+```text
+DB Running?
+
+Credentials Correct?
+
+Firewall Open?
+
+DNS Correct?
+```
+
+---
+
+Visual
+
+```text
+Application
+
+↓
+
+Database
+
+↓
+
+Connection?
+```
+
+---
+
+# The Senior Engineer Method
+
+When an alert comes:
+
+Never think:
+
+```text
+How Do I Fix It?
+```
+
+First think:
+
+```text
+What Exactly Is Broken?
+```
+
+---
+
+# Root Cause Analysis (RCA)
+
+After incident.
+
+Ask:
+
+```text
+What Happened?
+
+Why?
+
+How Prevent Again?
+```
+
+---
+
+Example
+
+Bad RCA:
+
+```text
+Restarted Server
+Issue Fixed
+```
+
+---
+
+Good RCA:
+
+```text
+Disk Filled
+
+↓
+
+Application Failed
+
+↓
+
+Monitoring Missing
+
+↓
+
+Added Alert
+```
+
+---
+
+# The 5 Why Technique
+
+Example:
+
+```text
+Website Down
+```
+
+Why?
+
+```text
+App Crashed
+```
+
+Why?
+
+```text
+Disk Full
+```
+
+Why?
+
+```text
+Logs Growing
+```
+
+Why?
+
+```text
+Rotation Missing
+```
+
+Why?
+
+```text
+Never Configured
+```
+
+Root Cause Found.
+
+---
+
+# Ultimate Troubleshooting Framework
+
+```text
+Observe
+
+↓
+
+Verify
+
+↓
+
+Isolate
+
+↓
+
+Identify
+
+↓
+
+Fix
+
+↓
+
+Validate
+
+↓
+
+Document
+
+↓
+
+Prevent
+```
+
+---
+
+# The DevOps Master Flow
+
+Everything you've learned now fits into one picture:
+
+```text
+Git
+  ↓
+
+Jenkins
+  ↓
+
+Terraform
+  ↓
+
+AWS Infrastructure
+  ↓
+
+Ansible
+  ↓
+
+Docker
+  ↓
+
+Kubernetes
+  ↓
+
+Application
+  ↓
+
+Monitoring
+  ↓
+
+Users
+```
+
+And troubleshooting means finding **which layer is failing**.
+
+---
+
+# Final Memory Map (Parts 17–22)
+
+```text
+Part 17
+=
+Real Deployment Project
+
+Part 18
+=
+Interview Mastery (next)
+
+Part 19
+=
+Terraform vs Ansible
+
+Part 20
+=
+Jenkins + Ansible
+
+Part 21
+=
+Ansible + Kubernetes
+
+Part 22
+=
+Production Troubleshooting
+```
+
+The only major section left in this advanced series is:
+
+```text
+Part 18
+=
+100+ Ansible Interview Questions
+```
+
+which becomes much easier now because you've already built the full mental model from infrastructure → deployment → Kubernetes → troubleshooting.
+
+***
+
+# Part 18: 100+ Ansible Interview Questions Master Notes
+
+## The Questions Interviewers Actually Ask
+
+Most people prepare like this:
+
+```text
+Read Notes
+
+↓
+
+Memorize Definitions
+
+↓
+
+Forget During Interview
+```
+
+Senior engineers prepare differently.
+
+```text
+Understand Concept
+
+↓
+
+Understand WHY
+
+↓
+
+Explain Using Real Example
+```
+
+---
+
+# Section 1: Ansible Fundamentals
+
+---
+
+## Q1: What is Ansible?
+
+### Short Answer
+
+```text
+Ansible is an agentless configuration management,
+automation, and orchestration tool.
+```
+
+### 10-Year-Old Answer
+
+Imagine:
+
+```text
+1 Teacher
+
+↓
+
+100 Students
+```
+
+Instead of teaching individually:
+
+```text
+Teacher Gives One Instruction
+
+↓
+
+Everyone Follows
+```
+
+That's Ansible.
+
+---
+
+## Q2: Why is Ansible called Agentless?
+
+### Answer
+
+Because no agent is installed on managed nodes.
+
+Communication happens using:
+
+```text
+SSH (Linux)
+
+WinRM (Windows)
+```
+
+---
+
+### Diagram
+
+```text
+Control Node
+
+↓
+
+SSH
+
+↓
+
+Managed Node
+```
+
+---
+
+## Q3: What are the main components of Ansible?
+
+Answer:
+
+```text
+Control Node
+
+Managed Nodes
+
+Inventory
+
+Modules
+
+Playbooks
+
+Variables
+
+Roles
+```
+
+---
+
+## Q4: What is a Control Node?
+
+Answer:
+
+```text
+Machine where Ansible is installed
+and from which automation is executed.
+```
+
+---
+
+## Q5: What are Managed Nodes?
+
+Answer:
+
+```text
+Target servers managed by Ansible.
+```
+
+---
+
+Visual
+
+```text
+Control Node
+
+    |
+
+    +---- Web Server
+
+    +---- App Server
+
+    +---- DB Server
+```
+
+---
+
+# Section 2: Inventory
+
+---
+
+## Q6: What is Inventory?
+
+Answer:
+
+```text
+A file containing information
+about managed hosts and groups.
+```
+
+---
+
+Example
+
+```ini
+[web]
+server1
+server2
+
+[db]
+server3
+```
+
+---
+
+## Q7: Why use Groups?
+
+Answer:
+
+Because actions can target:
+
+```text
+One Host
+
+or
+
+Many Hosts
+```
+
+---
+
+Example
+
+```bash
+ansible web -m ping
+```
+
+Runs on all web servers.
+
+---
+
+## Q8: Static vs Dynamic Inventory?
+
+### Static
+
+```text
+Manually Defined
+```
+
+### Dynamic
+
+```text
+Generated Automatically
+```
+
+from:
+
+* Amazon Web Services
+* Microsoft Azure
+* Google Cloud
+
+---
+
+## Q9: Why use Dynamic Inventory?
+
+Because cloud servers:
+
+```text
+Appear
+
+Disappear
+
+Scale
+```
+
+constantly.
+
+---
+
+## Q10: How do you verify inventory?
+
+```bash
+ansible-inventory --graph
+```
+
+or
+
+```bash
+ansible-inventory --list
+```
+
+---
+
+# Section 3: Modules
+
+---
+
+## Q11: What is a Module?
+
+Answer:
+
+```text
+A reusable unit of work executed by Ansible.
+```
+
+---
+
+Examples
+
+```text
+yum
+
+dnf
+
+copy
+
+service
+
+user
+
+file
+```
+
+---
+
+## Q12: Difference Between Command and Shell Module?
+
+### command
+
+```text
+Does Not Use Shell
+```
+
+---
+
+### shell
+
+```text
+Uses Shell Features
+```
+
+---
+
+Example
+
+Works only with shell:
+
+```bash
+cat file.txt | grep error
+```
+
+because pipe exists.
+
+---
+
+## Q13: Why prefer modules over shell commands?
+
+Because modules are:
+
+```text
+Idempotent
+
+Safer
+
+More Predictable
+```
+
+---
+
+## Q14: Most Common Modules?
+
+```text
+copy
+
+template
+
+service
+
+file
+
+package
+
+user
+```
+
+---
+
+# Section 4: Playbooks
+
+---
+
+## Q15: What is a Playbook?
+
+Answer:
+
+```text
+A YAML file containing automation tasks.
+```
+
+---
+
+Visual
+
+```text
+Playbook
+
+↓
+
+Tasks
+
+↓
+
+Modules
+
+↓
+
+Execution
+```
+
+---
+
+## Q16: Why Playbooks Instead of Adhoc Commands?
+
+Adhoc:
+
+```text
+One Time
+```
+
+Playbook:
+
+```text
+Reusable
+
+Version Controlled
+
+Repeatable
+```
+
+---
+
+## Q17: What Language Does Ansible Use?
+
+```text
+YAML
+```
+
+---
+
+## Q18: Why YAML?
+
+Because it's:
+
+```text
+Human Readable
+```
+
+---
+
+## Q19: What is a Task?
+
+Answer:
+
+```text
+Single action inside a playbook.
+```
+
+Example:
+
+```yaml
+- name: Install nginx
+```
+
+---
+
+## Q20: What is a Play?
+
+Answer:
+
+```text
+Collection of tasks
+executed against hosts.
+```
+
+---
+
+# Section 5: Variables
+
+---
+
+## Q21: Why use Variables?
+
+Avoid hardcoding.
+
+---
+
+Bad
+
+```yaml
+version: 2.1
+```
+
+---
+
+Better
+
+```yaml
+version: "{{ app_version }}"
+```
+
+---
+
+## Q22: What is Variable Precedence?
+
+Interview favorite.
+
+Question:
+
+```text
+If same variable exists
+in multiple places,
+which wins?
+```
+
+Answer:
+
+```text
+Most Specific Wins
+```
+
+---
+
+Memory Trick
+
+```text
+Host
+
+beats
+
+Group
+
+beats
+
+Defaults
+```
+
+---
+
+## Q23: What is group_vars?
+
+Variables shared by a group.
+
+---
+
+Example
+
+```text
+group_vars/web.yml
+```
+
+---
+
+## Q24: What is host_vars?
+
+Variables specific to one host.
+
+---
+
+Example
+
+```text
+host_vars/server1.yml
+```
+
+---
+
+# Section 6: Facts
+
+---
+
+## Q25: What are Facts?
+
+Information gathered from managed nodes.
+
+---
+
+Examples
+
+```text
+IP Address
+
+OS
+
+Memory
+
+CPU
+```
+
+---
+
+## Q26: Which Module Collects Facts?
+
+```text
+setup
+```
+
+---
+
+Command
+
+```bash
+ansible all -m setup
+```
+
+---
+
+## Q27: Why Use Facts?
+
+Dynamic automation.
+
+Example:
+
+```text
+Ubuntu
+
+↓
+
+apt
+
+RHEL
+
+↓
+
+dnf
+```
+
+---
+
+# Section 7: Handlers
+
+---
+
+## Q28: What is a Handler?
+
+Special task triggered only when changes occur.
+
+---
+
+Example
+
+```text
+Config Changed
+
+↓
+
+Restart Service
+```
+
+---
+
+## Q29: Why Handlers?
+
+Avoid unnecessary restarts.
+
+---
+
+Bad
+
+```text
+Restart Every Run
+```
+
+---
+
+Good
+
+```text
+Restart Only If Needed
+```
+
+---
+
+## Q30: When Does Handler Run?
+
+Only when:
+
+```text
+changed = true
+```
+
+---
+
+# Section 8: Templates
+
+---
+
+## Q31: Difference Between Copy and Template?
+
+Copy:
+
+```text
+Static File
+```
+
+Template:
+
+```text
+Dynamic File
+```
+
+---
+
+## Q32: What is Jinja2?
+
+Templating engine used by Ansible.
+
+---
+
+Example
+
+```jinja2
+Server={{ hostname }}
+```
+
+---
+
+## Q33: Why Templates?
+
+Because environments differ.
+
+```text
+Dev
+
+QA
+
+Prod
+```
+
+Need different values.
+
+---
+
+# Section 9: Roles
+
+---
+
+## Q34: What is a Role?
+
+Reusable automation package.
+
+---
+
+Visual
+
+```text
+Role
+
+↓
+
+Tasks
+
+Variables
+
+Templates
+
+Handlers
+
+Files
+```
+
+---
+
+## Q35: Why Roles?
+
+Better organization.
+
+Better reuse.
+
+---
+
+## Q36: Typical Role Structure?
+
+```text
+tasks/
+
+handlers/
+
+templates/
+
+vars/
+
+defaults/
+
+files/
+```
+
+---
+
+## Q37: What is Ansible Galaxy?
+
+Repository of reusable roles.
+
+---
+
+Think:
+
+```text
+GitHub For Roles
+```
+
+---
+
+# Section 10: Vault
+
+---
+
+## Q38: What is Ansible Vault?
+
+Tool for encrypting sensitive information.
+
+---
+
+Examples
+
+```text
+Passwords
+
+Tokens
+
+Keys
+```
+
+---
+
+## Q39: Why Vault?
+
+Never store secrets in plain text.
+
+---
+
+## Q40: Vault Commands?
+
+```bash
+ansible-vault create
+
+ansible-vault edit
+
+ansible-vault view
+
+ansible-vault encrypt
+
+ansible-vault decrypt
+```
+
+---
+
+# Section 11: Idempotency
+
+---
+
+## Q41: What is Idempotency?
+
+Running multiple times produces same result.
+
+---
+
+Example
+
+Install nginx.
+
+Already installed.
+
+Result:
+
+```text
+No Change
+```
+
+---
+
+## Q42: Why Important?
+
+Safe reruns.
+
+---
+
+Visual
+
+```text
+Run 1
+
+↓
+
+Configured
+
+Run 2
+
+↓
+
+No Extra Change
+```
+
+---
+
+# Section 12: Error Handling
+
+---
+
+## Q43: ignore_errors vs failed_when?
+
+### ignore_errors
+
+Ignore failure.
+
+### failed_when
+
+Define custom failure.
+
+---
+
+## Q44: What is Block?
+
+Group of tasks.
+
+---
+
+## Q45: What is Rescue?
+
+Runs when block fails.
+
+---
+
+Visual
+
+```text
+Block
+
+↓
+
+Failure
+
+↓
+
+Rescue
+```
+
+---
+
+## Q46: What is Always?
+
+Runs regardless of success/failure.
+
+---
+
+# Section 13: Advanced
+
+---
+
+## Q47: What is Serial?
+
+Rolling deployment control.
+
+---
+
+Example
+
+```yaml
+serial: 1
+```
+
+Meaning:
+
+```text
+One Server At A Time
+```
+
+---
+
+## Q48: Why Use Serial?
+
+Avoid downtime.
+
+---
+
+## Q49: What Are Forks?
+
+Parallel workers.
+
+---
+
+Example
+
+```ini
+forks=20
+```
+
+---
+
+Meaning:
+
+```text
+20 Hosts Simultaneously
+```
+
+---
+
+## Q50: Strategy Linear vs Free?
+
+### Linear
+
+Everyone waits.
+
+### Free
+
+Hosts run independently.
+
+---
+
+# MOST IMPORTANT SCENARIO QUESTIONS
+
+These are the questions that decide interviews.
+
+---
+
+## Q51
+
+How would you deploy application to 100 servers with zero downtime?
+
+Answer:
+
+```text
+Use serial deployment.
+
+Remove node from LB.
+
+Deploy.
+
+Health check.
+
+Add back.
+
+Move to next node.
+```
+
+---
+
+## Q52
+
+How do you store database passwords?
+
+Answer:
+
+```text
+Ansible Vault
+```
+
+---
+
+## Q53
+
+How would you manage different environments?
+
+Answer:
+
+```text
+Separate inventories
+
+Separate variables
+
+Dev
+
+QA
+
+Prod
+```
+
+---
+
+## Q54
+
+How would you install software on 500 servers?
+
+Answer:
+
+```text
+Inventory Group
+
+Playbook
+
+Parallel Execution
+```
+
+---
+
+## Q55
+
+How would you troubleshoot unreachable hosts?
+
+Answer:
+
+```text
+SSH
+
+Inventory
+
+Security Group
+
+Credentials
+
+Port 22
+```
+
+---
+
+## Q56
+
+Difference Between Terraform and Ansible?
+
+Answer:
+
+```text
+Terraform
+=
+Infrastructure Provisioning
+
+Ansible
+=
+Configuration Management
+```
+
+---
+
+## Q57
+
+How would Jenkins interact with Ansible?
+
+Answer:
+
+```text
+Jenkins triggers ansible-playbook
+during deployment stages.
+```
+
+---
+
+## Q58
+
+How does Ansible work with Kubernetes?
+
+Answer:
+
+```text
+Ansible provisions and configures
+Kubernetes clusters and can deploy
+resources through Kubernetes APIs.
+```
+
+---
+
+#  Questions
+
+---
+
+## Q59
+
+Why is Ansible agentless?
+
+## Q60
+
+How does Ansible achieve idempotency?
+
+## Q61
+
+What is fact caching?
+
+## Q62
+
+How does dynamic inventory work?
+
+## Q63
+
+How does variable precedence work?
+
+## Q64
+
+How do handlers differ from tasks?
+
+## Q65
+
+How do you perform rolling updates?
+
+## Q66
+
+How do you secure secrets?
+
+## Q67
+
+How do you structure enterprise playbooks?
+
+## Q68
+
+How do you troubleshoot large-scale deployments?
+
+---
+
+# The 20 Questions Asked Most Often
+
+```text
+What is Ansible?
+
+Why Agentless?
+
+Inventory?
+
+Modules?
+
+Playbooks?
+
+Variables?
+
+Facts?
+
+Handlers?
+
+Templates?
+
+Roles?
+
+Galaxy?
+
+Vault?
+
+Idempotency?
+
+Serial?
+
+Forks?
+
+Dynamic Inventory?
+
+Terraform vs Ansible?
+
+Jenkins + Ansible?
+
+Kubernetes + Ansible?
+
+Production Troubleshooting?
+```
 
