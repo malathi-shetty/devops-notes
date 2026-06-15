@@ -1,0 +1,6250 @@
+# Day 68 – Introduction to Ansible
+
+## Task 1: Understand Ansible
+
+### 1. What is Configuration Management? Why Do We Need It?
+
+Configuration Management is the process of defining, maintaining, and enforcing the desired state of servers and infrastructure.
+
+Instead of manually logging in to every server to:
+
+* Install software
+* Configure services
+* Create users
+* Update settings
+
+we define these configurations as code and apply them automatically.
+
+### Why Do We Need It?
+
+* **Consistency:** Ensures all servers are configured in the same way.
+* **Automation:** Eliminates repetitive manual tasks.
+* **Scalability:** Allows management of hundreds or thousands of servers efficiently.
+* **Reduced Human Error:** Minimizes mistakes caused by manual configuration.
+* **Version Control:** Infrastructure changes can be tracked using Git.
+* **Faster Recovery:** Servers can be rebuilt quickly using automation.
+
+### Example
+
+Without Configuration Management:
+
+```bash
+ssh server1
+sudo yum install nginx
+
+ssh server2
+sudo yum install nginx
+
+ssh server3
+sudo yum install nginx
+```
+
+With Ansible:
+
+```bash
+ansible web -m yum -a "name=nginx state=present" --become
+```
+
+A single command can manage multiple servers.
+
+---
+
+## 2. How Is Ansible Different from Chef, Puppet, and Salt?
+
+| Feature                | Ansible | Puppet         | Chef           | SaltStack    |
+| ---------------------- | ------- | -------------- | -------------- | ------------ |
+| Agent Required         | No      | Yes            | Yes            | Usually Yes  |
+| Communication          | SSH     | Agent ↔ Server | Agent ↔ Server | Agent or SSH |
+| Learning Curve         | Easy    | Medium         | Steep          | Medium       |
+| Configuration Language | YAML    | Puppet DSL     | Ruby DSL       | YAML/Python  |
+| Setup Complexity       | Low     | Medium         | High           | Medium       |
+| Push/Pull Model        | Push    | Pull           | Pull           | Hybrid       |
+
+### Key Differences
+
+#### Ansible
+
+* Agentless
+* Uses SSH
+* Simple YAML syntax
+* Easy to learn and deploy
+
+#### Puppet
+
+* Requires Puppet Agent on every node
+* Uses a custom DSL
+* Suitable for large enterprise environments
+
+#### Chef
+
+* Uses Ruby-based recipes
+* More flexible but harder to learn
+* Requires Chef Client on nodes
+
+#### SaltStack
+
+* Fast execution
+* Supports both agent-based and agentless modes
+* Commonly used for real-time infrastructure management
+
+### Why Ansible Is Popular
+
+* No agent installation required
+* Easy setup
+* Human-readable YAML
+* Strong cloud and DevOps ecosystem support
+
+---
+
+## 3. What Does “Agentless” Mean? How Does Ansible Connect to Managed Nodes?
+
+### Agentless
+
+Agentless means that Ansible does **not require any software agent to be installed on the target servers**.
+
+Many configuration management tools require:
+
+* A central server
+* An agent running continuously on every managed node
+
+Ansible eliminates this requirement.
+
+### How Ansible Connects
+
+Ansible uses:
+
+* SSH (Linux/Unix)
+* WinRM (Windows)
+
+For Linux servers:
+
+```text
+Control Node
+      |
+      | SSH
+      v
+Managed Node
+```
+
+When a task is executed:
+
+1. Ansible connects through SSH.
+2. Copies a small module to the target system.
+3. Executes the module.
+4. Returns the result.
+5. Removes temporary files.
+
+### Benefits of Agentless Architecture
+
+* Simpler setup
+* Lower resource consumption
+* Easier maintenance
+* Fewer security concerns
+
+---
+
+## 4. Ansible Architecture
+
+### High-Level Architecture
+
+```text
+                 +------------------+
+                 |   Control Node   |
+                 |    (Ansible)     |
+                 +------------------+
+                           |
+                           | SSH
+                           |
+       -----------------------------------------
+       |                   |                   |
+       v                   v                   v
+
++--------------+   +--------------+   +--------------+
+| Web Server   |   | App Server   |   | DB Server    |
+| Managed Node |   | Managed Node |   | Managed Node |
++--------------+   +--------------+   +--------------+
+
+         Inventory defines these hosts
+```
+
+---
+
+### Control Node
+
+The machine where Ansible is installed and executed.
+
+#### Examples
+
+* Your laptop
+* A jump server
+* A dedicated management EC2 instance
+
+#### Responsibilities
+
+* Stores inventory
+* Stores playbooks
+* Executes Ansible commands
+* Connects to managed nodes through SSH
+
+---
+
+### Managed Nodes
+
+The servers that Ansible manages.
+
+#### Examples
+
+* EC2 instances
+* Virtual machines
+* Physical servers
+
+#### Characteristics
+
+* Do not require Ansible installation
+* Must allow SSH access
+* Execute tasks sent by the control node
+
+---
+
+### Inventory
+
+An inventory is a file that contains information about managed hosts.
+
+#### Example
+
+```ini
+[web]
+web-server ansible_host=10.0.1.10
+
+[app]
+app-server ansible_host=10.0.1.11
+
+[db]
+db-server ansible_host=10.0.1.12
+```
+
+#### Purpose
+
+* Organize servers into groups
+* Define connection variables
+* Specify target hosts for automation
+
+---
+
+### Modules
+
+Modules are reusable units of work executed by Ansible.
+
+#### Examples
+
+| Module  | Purpose                               |
+| ------- | ------------------------------------- |
+| ping    | Test connectivity                     |
+| yum     | Install packages on RHEL/Amazon Linux |
+| apt     | Install packages on Ubuntu            |
+| copy    | Copy files                            |
+| service | Start/Stop services                   |
+| user    | Manage users                          |
+
+#### Example
+
+```bash
+ansible web -m yum -a "name=git state=present" --become
+```
+
+Here, `yum` is the module.
+
+---
+
+### Playbooks
+
+Playbooks are YAML files that define automation tasks.
+
+#### Example
+
+```yaml
+---
+- name: Install Git
+  hosts: web
+
+  tasks:
+    - name: Install Git package
+      yum:
+        name: git
+        state: present
+```
+
+#### Purpose
+
+* Automate repeatable tasks
+* Maintain desired state
+* Enable Infrastructure as Code (IaC)
+
+---
+
+## Task 1 Summary
+
+* Configuration Management automates server configuration and ensures consistency.
+* Ansible differs from Chef, Puppet, and Salt because it is agentless and uses SSH.
+* Agentless means no software needs to be installed on managed nodes.
+* Core Ansible components:
+
+  * **Control Node** → Runs Ansible
+  * **Managed Nodes** → Target servers
+  * **Inventory** → Host definitions
+  * **Modules** → Individual tasks
+  * **Playbooks** → YAML automation files
+
+***
+
+# Part 2 (Rewritten)
+
+# Task 2: Set Up Your Lab Environment
+
+## Architecture
+
+```text
+                    Internet
+                        |
+                        |
+                 +-------------+
+                 | Security SG |
+                 | SSH : 22    |
+                 +-------------+
+                        |
+      ---------------------------------------
+      |                 |                  |
+      v                 v                  v
+
++-------------+   +-------------+   +-------------+
+| Web Server  |   | App Server  |   | DB Server   |
+| t2.micro    |   | t2.micro    |   | t2.micro    |
+| EC2         |   | EC2         |   | EC2         |
++-------------+   +-------------+   +-------------+
+```
+
+---
+
+# Step 1: Create Project Directory
+
+```bash
+mkdir day-68-ansible-lab
+cd day-68-ansible-lab
+```
+
+---
+
+# Step 2: Create Terraform Files
+
+## provider.tf
+
+```hcl
+provider "aws" {
+  region = "ap-south-1"
+}
+```
+
+---
+
+## variables.tf
+
+```hcl
+variable "key_name" {
+  default = "your-keypair-name"
+}
+```
+
+Replace with your actual AWS key pair name.
+
+---
+
+## main.tf
+
+For Amazon Linux 2:
+
+```hcl
+resource "aws_security_group" "ansible_sg" {
+  name = "ansible-lab-sg"
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["YOUR_PUBLIC_IP/32"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_instance" "web" {
+  ami                    = "ami-0f58b397bc5c1f2e8"
+  instance_type          = "t2.micro"
+  key_name               = var.key_name
+  vpc_security_group_ids = [aws_security_group.ansible_sg.id]
+
+  tags = {
+    Name = "web-server"
+  }
+}
+
+resource "aws_instance" "app" {
+  ami                    = "ami-0f58b397bc5c1f2e8"
+  instance_type          = "t2.micro"
+  key_name               = var.key_name
+  vpc_security_group_ids = [aws_security_group.ansible_sg.id]
+
+  tags = {
+    Name = "app-server"
+  }
+}
+
+resource "aws_instance" "db" {
+  ami                    = "ami-0f58b397bc5c1f2e8"
+  instance_type          = "t2.micro"
+  key_name               = var.key_name
+  vpc_security_group_ids = [aws_security_group.ansible_sg.id]
+
+  tags = {
+    Name = "db-server"
+  }
+}
+```
+
+---
+
+## outputs.tf
+
+```hcl
+output "web_public_ip" {
+  value = aws_instance.web.public_ip
+}
+
+output "app_public_ip" {
+  value = aws_instance.app.public_ip
+}
+
+output "db_public_ip" {
+  value = aws_instance.db.public_ip
+}
+```
+
+---
+
+# Step 3: Initialize Terraform
+
+```bash
+terraform init
+```
+
+Expected:
+
+```text
+Terraform has been successfully initialized!
+```
+
+---
+
+# Step 4: Validate Configuration
+
+```bash
+terraform validate
+```
+
+Expected:
+
+```text
+Success! The configuration is valid.
+```
+
+---
+
+# Step 5: Preview Changes
+
+```bash
+terraform plan
+```
+
+Review the resources that will be created:
+
+* Security Group
+* Web Server
+* App Server
+* DB Server
+
+---
+
+# Step 6: Deploy Infrastructure
+
+```bash
+terraform apply
+```
+
+Type:
+
+```text
+yes
+```
+
+or use:
+
+```bash
+terraform apply -auto-approve
+```
+
+Expected resources:
+
+```text
+aws_security_group.ansible_sg
+aws_instance.web
+aws_instance.app
+aws_instance.db
+```
+
+---
+
+# Step 7: Retrieve Public IPs
+
+```bash
+terraform output
+```
+
+Example:
+
+```text
+web_public_ip = "54.xx.xx.xx"
+app_public_ip = "3.xx.xx.xx"
+db_public_ip  = "13.xx.xx.xx"
+```
+
+Save these IP addresses because they will be used later in the Ansible inventory.
+
+---
+
+# Step 8: Verify SSH Connectivity
+
+Use your AWS key pair:
+
+```bash
+ssh -i ~/.ssh/your-key.pem ec2-user@<web-public-ip>
+```
+
+Example:
+
+```bash
+ssh -i ~/.ssh/mykey.pem ec2-user@54.xx.xx.xx
+```
+
+If successful:
+
+```text
+[ec2-user@ip-172-31-x-x ~]$
+```
+
+Exit:
+
+```bash
+exit
+```
+
+Repeat for:
+
+```bash
+ssh -i ~/.ssh/your-key.pem ec2-user@<app-public-ip>
+```
+
+and
+
+```bash
+ssh -i ~/.ssh/your-key.pem ec2-user@<db-public-ip>
+```
+
+---
+
+# Troubleshooting SSH Key Issues
+
+## Root Cause Identified
+
+AWS key pair fingerprint:
+
+```text
+b9:09:98:ea:48:1d:a4:84:f1:2e:53:b8:8a:b1:68:28:4f:50:e8:29
+```
+
+Local `tws.pem` fingerprint:
+
+```text
+0f:03:42:ee:9a:cc:fa:de:4a:64:15:5f:f2:6f:b5:b9
+```
+
+These fingerprints are different.
+
+This means:
+
+❌ `~/.ssh/tws.pem` is not the private key associated with the AWS key pair named `tws`.
+
+SSH will never work with this file even though the filename matches.
+
+---
+
+## What Happened?
+
+Most likely one of the following:
+
+* The AWS key pair `tws` was recreated.
+* The original `tws.pem` was lost.
+* The local file is an older or different key.
+
+AWS allows reusing the same key pair name, but the cryptographic key changes.
+
+---
+
+# Fastest Fix (Recommended)
+
+Since this is a Day 68 Ansible lab, recovering the old key is usually not worth the effort.
+
+## 1. Create a New Key Pair
+
+AWS Console:
+
+```text
+EC2 → Key Pairs → Create Key Pair
+```
+
+Name:
+
+```text
+ansible-lab
+```
+
+Type:
+
+```text
+RSA
+.pem
+```
+
+Download:
+
+```text
+ansible-lab.pem
+```
+
+---
+
+## 2. Move the Key to Linux/WSL
+
+```bash
+mkdir -p ~/.ssh
+cp /mnt/d/path/to/ansible-lab.pem ~/.ssh/
+chmod 400 ~/.ssh/ansible-lab.pem
+```
+
+---
+
+### Actual User Path Example
+
+Windows path:
+
+```text
+D:\devops\devopslearning\pem\ansible-lab.pem
+```
+
+WSL path:
+
+```bash
+/mnt/d/devops/devopslearning/pem/ansible-lab.pem
+```
+
+Verify:
+
+```bash
+ls -l /mnt/d/devops/devopslearning/pem/
+```
+
+Expected:
+
+```text
+ansible-lab.pem
+```
+
+Copy:
+
+```bash
+cp /mnt/d/devops/devopslearning/pem/ansible-lab.pem ~/.ssh/
+chmod 400 ~/.ssh/ansible-lab.pem
+```
+
+Verify:
+
+```bash
+ls -l ~/.ssh/ansible-lab.pem
+```
+
+Expected:
+
+```text
+-r-------- 1 malathi malathi ...
+```
+
+---
+
+## 3. Update Terraform
+
+### variables.tf
+
+```hcl
+variable "key_name" {
+  default = "ansible-lab"
+}
+```
+
+or
+
+### terraform.tfvars
+
+```hcl
+key_name = "ansible-lab"
+```
+
+---
+
+## 4. Recreate the Instances
+
+EC2 key pairs cannot be changed after launch.
+
+```bash
+terraform destroy -auto-approve
+terraform apply -auto-approve
+```
+
+---
+
+## 5. Verify Key Exists
+
+```bash
+ls -l ~/.ssh/
+```
+
+Expected:
+
+```text
+ansible-lab.pem
+tws.pem
+known_hosts
+```
+
+---
+
+## 6. Test SSH
+
+```bash
+ssh -i ~/.ssh/ansible-lab.pem ec2-user@<public-ip>
+```
+
+For Amazon Linux 2023:
+
+```text
+ec2-user
+```
+
+is the correct login user.
+
+---
+
+### Common Mistake
+
+Wrong:
+
+```bash
+ssh -i ~/ansible-lab.pem ec2-user@35.92.55.203
+```
+
+This expands to:
+
+```text
+/home/malathi/ansible-lab.pem
+```
+
+which does not exist.
+
+Correct:
+
+```bash
+ssh -i ~/.ssh/ansible-lab.pem ec2-user@35.92.55.203
+```
+
+or
+
+```bash
+ssh -i /home/malathi/.ssh/ansible-lab.pem ec2-user@35.92.55.203
+```
+
+---
+
+### Quick Reference
+
+| Wrong                           | Correct                              |
+| ------------------------------- | ------------------------------------ |
+| `~/ansible-lab.pem`             | `~/.ssh/ansible-lab.pem`             |
+| `/home/malathi/ansible-lab.pem` | `/home/malathi/.ssh/ansible-lab.pem` |
+
+---
+
+## Verify AWS Is Using the New Key Pair
+
+```bash
+aws ec2 describe-instances \
+  --region us-west-2 \
+  --query 'Reservations[*].Instances[*].[PublicIpAddress,KeyName]' \
+  --output table
+```
+
+Expected:
+
+```text
+16.146.52.72    ansible-lab
+```
+
+If you still see:
+
+```text
+16.146.52.72    tws
+```
+
+then the instances were not recreated.
+
+Run:
+
+```bash
+terraform destroy -auto-approve
+terraform apply -auto-approve
+```
+
+again after updating:
+
+```hcl
+key_name = "ansible-lab"
+```
+
+---
+
+# Task 2 Documentation
+
+```markdown
+## Lab Setup
+
+Provisioned 3 EC2 instances using Terraform.
+
+Configuration:
+- OS: Amazon Linux 2023
+- Instance Type: t2.micro
+- Security Group: SSH (22)
+- Key Pair: ansible-lab
+
+Instances:
+- web-server
+- app-server
+- db-server
+
+Verified SSH access successfully using:
+
+ssh -i ~/.ssh/ansible-lab.pem ec2-user@<public-ip>
+```
+
+---
+
+## Verification Results
+
+Successful connection:
+
+```bash
+ssh -i ~/.ssh/ansible-lab.pem ec2-user@16.146.52.72
+```
+
+Output:
+
+```text
+Amazon Linux 2023
+[ec2-user@ip-172-31-34-213 ~]$
+```
+
+This confirms:
+
+✅ EC2 instances are running
+✅ Security Group allows SSH
+✅ Key pair is correct
+✅ SSH access works
+✅ Control node can reach managed nodes
+
+***
+
+# Task 3: Install Ansible on the Control Node
+
+After successfully provisioning the EC2 instances and verifying SSH connectivity, the next step is to install Ansible on the control node.
+
+In this lab, the control node is:
+
+```text
+malathi@Deepak
+```
+
+which is an Ubuntu WSL machine.
+
+---
+
+# Step 1: Verify Operating System
+
+Before installing Ansible, check the operating system.
+
+```bash
+cat /etc/os-release
+```
+
+Expected output (similar):
+
+```text
+PRETTY_NAME="Ubuntu 24.04 LTS"
+NAME="Ubuntu"
+VERSION="24.04 LTS"
+```
+
+---
+
+# Step 2: Update Package Repository
+
+```bash
+sudo apt update
+```
+
+This refreshes the package index and ensures the latest package information is available.
+
+---
+
+# Step 3: Install Ansible
+
+```bash
+sudo apt install ansible -y
+```
+
+The `-y` option automatically approves the installation prompts.
+
+---
+
+# Step 4: Verify Installation
+
+Check the installed version:
+
+```bash
+ansible --version
+```
+
+Expected output (similar):
+
+```text
+ansible [core 2.x.x]
+  config file = None
+  python version = 3.x.x
+```
+
+Example:
+
+```text
+ansible [core 2.18.x]
+  config file = None
+  python version = 3.12.x
+```
+
+---
+
+# Understanding What Was Installed
+
+The installation includes:
+
+* Ansible Core
+* Ansible CLI commands
+* Inventory processing
+* Playbook execution engine
+* Built-in modules
+* SSH-based communication components
+
+Common commands now available:
+
+```bash
+ansible
+ansible-playbook
+ansible-galaxy
+ansible-config
+ansible-doc
+ansible-inventory
+ansible-vault
+```
+
+---
+
+# Verify Ansible Is Working
+
+Run:
+
+```bash
+ansible --version
+```
+
+Example:
+
+```text
+ansible [core 2.x.x]
+```
+
+This confirms that Ansible has been successfully installed on the control node.
+
+---
+
+# Documentation Questions
+
+## On Which Machine Did You Install Ansible?
+
+### Answer
+
+Ansible was installed on the control node (`malathi@Deepak`), which is an Ubuntu WSL machine. The control node is responsible for executing Ansible commands, running playbooks, storing inventory files, and managing remote servers.
+
+---
+
+## Why Is Ansible Installed Only on the Control Node?
+
+### Answer
+
+Ansible follows an **agentless architecture**. Unlike many configuration management tools, it does not require a software agent to be installed on every managed node.
+
+The control node initiates connections to managed nodes using SSH, transfers modules temporarily, executes tasks, collects results, and then removes temporary files.
+
+Because all automation logic runs from the control node, Ansible only needs to be installed there.
+
+---
+
+## How Does Ansible Work Without Being Installed on Managed Nodes?
+
+### Answer
+
+When an Ansible task is executed:
+
+1. The control node reads the inventory file.
+2. Ansible connects to the target server using SSH.
+3. A small Ansible module is copied to the target machine.
+4. The module executes on the target machine.
+5. Results are returned to the control node.
+6. Temporary files are removed.
+
+Workflow:
+
+```text
+Control Node
+      |
+      | SSH
+      v
+Managed Node
+
+1. Connect
+2. Transfer Module
+3. Execute Task
+4. Return Result
+5. Cleanup
+```
+
+---
+
+## Benefits of Installing Ansible Only on the Control Node
+
+### 1. Simpler Setup
+
+No software installation is required on managed nodes.
+
+### 2. Easier Maintenance
+
+Only one machine requires Ansible upgrades.
+
+### 3. Reduced Resource Usage
+
+Managed nodes do not consume resources running background agents.
+
+### 4. Better Security
+
+Fewer components are installed on production servers.
+
+### 5. Faster Adoption
+
+New servers can be managed immediately once SSH access is available.
+
+---
+
+# Lab Notes
+
+```markdown
+## Task 3 - Install Ansible
+
+Installed Ansible on the Ubuntu WSL control node.
+
+Commands used:
+
+sudo apt update
+sudo apt install ansible -y
+
+Verified installation:
+
+ansible --version
+
+Reason for installation on control node:
+
+Ansible uses an agentless architecture. It connects to managed nodes through SSH, temporarily transfers modules, executes tasks, returns results, and removes temporary files. Therefore, Ansible only needs to be installed on the control node and not on the managed nodes.
+```
+
+***
+
+# Task 4: Create Your Inventory File
+
+Now that:
+
+✅ EC2 instances are running
+
+✅ SSH connectivity is verified
+
+✅ Ansible is installed on the control node
+
+the next step is to create an **Inventory File** so Ansible knows which servers it should manage.
+
+---
+
+# What Is an Inventory?
+
+An Inventory is a file that contains information about managed hosts.
+
+Ansible uses this file to:
+
+* Discover target machines
+* Organize hosts into groups
+* Store connection details
+* Apply automation to specific servers
+
+Without an inventory, Ansible does not know where to execute tasks.
+
+---
+
+# Inventory Structure
+
+For this lab we have three EC2 instances:
+
+```text
+Web Server
+App Server
+DB Server
+```
+
+We'll organize them into groups.
+
+```text
+web
+app
+db
+```
+
+---
+
+# Step 1: Create Project Directory
+
+Move to your Ansible project folder:
+
+```bash
+cd ~/projects/90DaysOfDevOps_TrainWithShubham/2026/day-68/ansible-practice
+```
+
+If it doesn't exist:
+
+```bash
+mkdir -p ~/projects/90DaysOfDevOps_TrainWithShubham/2026/day-68/ansible-practice
+cd ~/projects/90DaysOfDevOps_TrainWithShubham/2026/day-68/ansible-practice
+```
+
+---
+
+# Step 2: Create Inventory File
+
+```bash
+touch inventory.ini
+```
+
+Verify:
+
+```bash
+ls
+```
+
+Expected:
+
+```text
+inventory.ini
+```
+
+---
+
+# Step 3: Add Hosts to Inventory
+
+Open:
+
+```bash
+nano inventory.ini
+```
+
+Add:
+
+```ini
+[web]
+web-server ansible_host=<WEB_SERVER_IP>
+
+[app]
+app-server ansible_host=<APP_SERVER_IP>
+
+[db]
+db-server ansible_host=<DB_SERVER_IP>
+
+[all:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=/home/malathi/.ssh/ansible-lab.pem
+```
+
+Replace:
+
+```text
+<WEB_SERVER_IP>
+<APP_SERVER_IP>
+<DB_SERVER_IP>
+```
+
+with actual Terraform outputs.
+
+Example:
+
+```ini
+[web]
+web-server ansible_host=54.123.10.20
+
+[app]
+app-server ansible_host=3.111.45.90
+
+[db]
+db-server ansible_host=13.233.90.10
+
+[all:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=/home/malathi/.ssh/ansible-lab.pem
+```
+
+Save:
+
+```text
+CTRL + O
+ENTER
+CTRL + X
+```
+
+---
+
+# Understanding Each Section
+
+## Web Group
+
+```ini
+[web]
+web-server ansible_host=54.123.10.20
+```
+
+Meaning:
+
+```text
+Group Name = web
+Host Name  = web-server
+IP Address = 54.123.10.20
+```
+
+---
+
+## App Group
+
+```ini
+[app]
+app-server ansible_host=3.111.45.90
+```
+
+---
+
+## DB Group
+
+```ini
+[db]
+db-server ansible_host=13.233.90.10
+```
+
+---
+
+## Global Variables
+
+```ini
+[all:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=/home/malathi/.ssh/ansible-lab.pem
+```
+
+Applied to all hosts.
+
+This prevents repeatedly specifying:
+
+```bash
+-u ec2-user
+```
+
+and
+
+```bash
+--private-key ~/.ssh/ansible-lab.pem
+```
+
+for every command.
+
+---
+
+# Step 4: Verify Inventory
+
+Run:
+
+```bash
+ansible-inventory -i inventory.ini --list
+```
+
+Expected structure:
+
+```json
+{
+  "web": {
+    "hosts": [
+      "web-server"
+    ]
+  },
+  "app": {
+    "hosts": [
+      "app-server"
+    ]
+  },
+  "db": {
+    "hosts": [
+      "db-server"
+    ]
+  }
+}
+```
+
+If this appears, Ansible can successfully read the inventory.
+
+---
+
+# Step 5: Display Inventory Graph
+
+Run:
+
+```bash
+ansible-inventory -i inventory.ini --graph
+```
+
+Expected:
+
+```text
+@all:
+  |--@ungrouped:
+  |--@web:
+  |  |--web-server
+  |--@app:
+  |  |--app-server
+  |--@db:
+  |  |--db-server
+```
+
+This visually confirms the host grouping.
+
+---
+
+# Step 6: Test Connectivity Using Ping Module
+
+The Ansible ping module tests:
+
+* SSH connectivity
+* Authentication
+* Ansible communication
+
+Run:
+
+```bash
+ansible all -i inventory.ini -m ping
+```
+
+Expected:
+
+```text
+web-server | SUCCESS => {
+    "ping": "pong"
+}
+
+app-server | SUCCESS => {
+    "ping": "pong"
+}
+
+db-server | SUCCESS => {
+    "ping": "pong"
+}
+```
+
+---
+
+# What Happens Internally?
+
+```text
+1. User runs:
+   ansible all -m ping
+
+2. Ansible reads:
+   inventory.ini
+
+3. Ansible finds:
+   web-server
+   app-server
+   db-server
+
+4. Ansible connects:
+   SSH --> Managed Nodes
+
+5. Ansible transfers:
+   ping module
+
+6. Module executes:
+   ping -> pong
+
+7. Result returns:
+   SUCCESS
+```
+
+---
+
+# Connectivity Flow Diagram
+
+```text
+Control Node
+      |
+      | SSH
+      |
+      +-----------------> Web Server
+      |
+      +-----------------> App Server
+      |
+      +-----------------> DB Server
+
+Ansible Ping Module
+        |
+        v
+      pong
+```
+
+---
+
+# Documentation Questions
+
+## What Is an Inventory?
+
+### Answer
+
+An Inventory is a file that contains the list of managed nodes and connection information. It allows Ansible to identify which servers should receive automation tasks.
+
+---
+
+## Why Use Groups?
+
+### Answer
+
+Groups allow multiple servers with similar roles to be managed together.
+
+Example:
+
+```ini
+[web]
+web-server
+
+[app]
+app-server
+```
+
+Commands can target an entire group:
+
+```bash
+ansible web -m ping
+```
+
+instead of targeting individual servers.
+
+---
+
+## What Is the Purpose of `[all:vars]`?
+
+### Answer
+
+`[all:vars]` defines variables that apply to every host in the inventory.
+
+Example:
+
+```ini
+[all:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=/home/malathi/.ssh/ansible-lab.pem
+```
+
+This eliminates repetitive connection parameters.
+
+---
+
+# Lab Notes
+
+```markdown
+## Task 4 - Inventory Setup
+
+Created inventory.ini containing:
+
+- web group
+- app group
+- db group
+
+Configured global variables:
+
+- ansible_user
+- ansible_ssh_private_key_file
+
+Verified inventory using:
+
+ansible-inventory -i inventory.ini --list
+
+Tested connectivity using:
+
+ansible all -i inventory.ini -m ping
+
+All managed nodes returned:
+
+"ping": "pong"
+```
+
+***
+
+# Task 5: Execute Ansible Ad-Hoc Commands
+
+Now that:
+
+✅ Ansible is installed
+
+✅ Inventory is configured
+
+✅ Connectivity is verified using `ping`
+
+the next step is to execute **Ad-Hoc Commands**.
+
+Ad-Hoc Commands are one-line Ansible commands used for quick administrative tasks without creating a playbook.
+
+Examples:
+
+* Checking uptime
+* Checking memory
+* Checking disk space
+* Installing software
+* Copying files
+* Running shell commands
+
+---
+
+# What Are Ad-Hoc Commands?
+
+An Ad-Hoc Command is a single Ansible command executed directly from the terminal.
+
+General syntax:
+
+```bash
+ansible <host-pattern> -m <module> -a "<arguments>"
+```
+
+Where:
+
+| Component    | Meaning            |
+| ------------ | ------------------ |
+| ansible      | Ansible CLI        |
+| host-pattern | Target hosts/group |
+| -m           | Module             |
+| -a           | Module arguments   |
+
+Example:
+
+```bash
+ansible web -m ping
+```
+
+Meaning:
+
+```text
+Run ping module against all hosts in web group
+```
+
+---
+
+# Task 5.1 – Check Uptime on All Servers
+
+Command:
+
+```bash
+ansible all -i inventory.ini -m command -a "uptime"
+```
+
+Expected output:
+
+```text
+web-server | CHANGED | rc=0 >>
+ 10:15:22 up 25 min, 1 user, load average: 0.00, 0.01, 0.00
+
+app-server | CHANGED | rc=0 >>
+ 10:15:23 up 25 min, 1 user, load average: 0.00, 0.00, 0.00
+
+db-server | CHANGED | rc=0 >>
+ 10:15:23 up 25 min, 1 user, load average: 0.00, 0.00, 0.00
+```
+
+---
+
+## Explanation
+
+```text
+all        -> all inventory hosts
+command    -> command module
+uptime     -> Linux uptime command
+```
+
+Purpose:
+
+* Verify servers are running
+* Check system load
+* Confirm connectivity
+
+---
+
+# Task 5.2 – Check Memory Usage
+
+Target only the web server.
+
+Command:
+
+```bash
+ansible web -i inventory.ini -m command -a "free -h"
+```
+
+Expected output:
+
+```text
+web-server | CHANGED | rc=0 >>
+               total        used        free
+Mem:           912Mi       182Mi       540Mi
+Swap:             0B          0B          0B
+```
+
+---
+
+## Explanation
+
+```text
+free -h
+
+free  -> display memory usage
+-h    -> human readable
+```
+
+Purpose:
+
+* Monitor RAM usage
+* Check available memory
+* Verify server health
+
+---
+
+# Task 5.3 – Check Disk Usage
+
+Command:
+
+```bash
+ansible all -i inventory.ini -m command -a "df -h"
+```
+
+Expected output:
+
+```text
+web-server | CHANGED | rc=0 >>
+Filesystem      Size Used Avail Use%
+/dev/xvda1       20G  2G   18G  10%
+
+app-server | CHANGED | rc=0 >>
+Filesystem      Size Used Avail Use%
+/dev/xvda1       20G  2G   18G  10%
+
+db-server | CHANGED | rc=0 >>
+Filesystem      Size Used Avail Use%
+/dev/xvda1       20G  2G   18G  10%
+```
+
+---
+
+## Explanation
+
+```text
+df -h
+
+df -> disk free
+-h -> human readable
+```
+
+Purpose:
+
+* Check storage availability
+* Monitor capacity
+* Detect disk issues
+
+---
+
+# Task 5.4 – Install Git on Web Server
+
+Because the servers use Amazon Linux 2023, use:
+
+```text
+dnf
+```
+
+instead of:
+
+```text
+yum
+```
+
+---
+
+## Install Git
+
+Command:
+
+```bash
+ansible web -i inventory.ini -m dnf -a "name=git state=present" --become
+```
+
+Expected:
+
+```text
+web-server | CHANGED => {
+    "changed": true
+}
+```
+
+---
+
+## Verify Installation
+
+Command:
+
+```bash
+ansible web -i inventory.ini -m command -a "git --version"
+```
+
+Expected:
+
+```text
+web-server | CHANGED | rc=0 >>
+git version 2.x.x
+```
+
+---
+
+## Why Use `--become`?
+
+Installing packages requires root privileges.
+
+```bash
+--become
+```
+
+acts like:
+
+```bash
+sudo
+```
+
+and temporarily elevates privileges.
+
+Without it:
+
+```text
+Permission denied
+```
+
+or
+
+```text
+Operation not permitted
+```
+
+may occur.
+
+---
+
+# Task 5.5 – Copy a File to All Servers
+
+Create a local file.
+
+```bash
+echo "Hello from Ansible" > hello.txt
+```
+
+Verify:
+
+```bash
+cat hello.txt
+```
+
+Output:
+
+```text
+Hello from Ansible
+```
+
+---
+
+## Copy File
+
+Command:
+
+```bash
+ansible all -i inventory.ini -m copy -a "src=hello.txt dest=/tmp/hello.txt"
+```
+
+Expected:
+
+```text
+web-server | CHANGED
+app-server | CHANGED
+db-server | CHANGED
+```
+
+---
+
+## What Happens Internally?
+
+```text
+Control Node
+      |
+      | copy module
+      |
+      +-----> web-server
+      +-----> app-server
+      +-----> db-server
+
+File transferred:
+/tmp/hello.txt
+```
+
+---
+
+# Task 5.6 – Verify Copied File
+
+Command:
+
+```bash
+ansible all -i inventory.ini -m command -a "cat /tmp/hello.txt"
+```
+
+Expected:
+
+```text
+web-server | CHANGED | rc=0 >>
+Hello from Ansible
+
+app-server | CHANGED | rc=0 >>
+Hello from Ansible
+
+db-server | CHANGED | rc=0 >>
+Hello from Ansible
+```
+
+This confirms:
+
+✅ File exists
+
+✅ File contents are correct
+
+✅ Copy module worked successfully
+
+---
+
+# Understanding Modules Used
+
+| Module  | Purpose                |
+| ------- | ---------------------- |
+| ping    | Connectivity test      |
+| command | Execute Linux commands |
+| dnf     | Install packages       |
+| copy    | Copy files             |
+| shell   | Execute shell commands |
+
+---
+
+# Command vs Shell Module
+
+## command Module
+
+Executes commands directly.
+
+Example:
+
+```bash
+ansible all -m command -a "uptime"
+```
+
+Advantages:
+
+* More secure
+* Faster
+* Recommended when shell features are unnecessary
+
+---
+
+## shell Module
+
+Executes commands through a shell.
+
+Example:
+
+```bash
+ansible all -m shell -a "df -h | grep nvme"
+```
+
+Advantages:
+
+* Supports pipes
+* Supports redirects
+* Supports variables
+
+---
+
+## Comparison Table
+
+| command Module             | shell Module             |                |
+| -------------------------- | ------------------------ | -------------- |
+| Executes commands directly | Executes through shell   |                |
+| More secure                | Less secure              |                |
+| Faster                     | Slightly slower          |                |
+| No pipes (`                | `)                       | Supports pipes |
+| No redirects (`>`, `<`)    | Supports redirects       |                |
+| No shell variables         | Supports shell variables |                |
+| Recommended by default     | Use only when needed     |                |
+
+---
+
+### Example That Fails with command
+
+```bash
+ansible all -m command -a "df -h | grep nvme"
+```
+
+Because:
+
+```text
+|
+```
+
+is a shell feature.
+
+---
+
+### Correct Version
+
+```bash
+ansible all -m shell -a "df -h | grep nvme"
+```
+
+---
+
+# Documentation Questions
+
+## What Does `--become` Do?
+
+### Answer
+
+`--become` enables privilege escalation and allows Ansible to execute tasks as the root user (similar to `sudo`).
+
+It is required for operations such as:
+
+* Installing packages
+* Managing services
+* Creating system users
+* Modifying files under `/etc`
+* Updating system configurations
+
+Example:
+
+```bash
+ansible web -m dnf -a "name=git state=present" --become
+```
+
+Without `--become`, the `ec2-user` account would not have sufficient permissions to install packages.
+
+---
+
+## Difference Between `command` and `shell` Modules
+
+### Answer
+
+The `command` module executes commands directly and is more secure because it does not invoke a shell.
+
+The `shell` module executes commands through a shell and supports shell-specific features such as pipes, redirects, and environment variables.
+
+Use `command` whenever possible and use `shell` only when shell features are required.
+
+---
+
+# Lab Notes
+
+```markdown
+## Task 5 - Ansible Ad-Hoc Commands
+
+Executed the following tasks:
+
+1. Checked server uptime
+2. Checked memory usage
+3. Checked disk usage
+4. Installed Git using dnf module
+5. Verified Git installation
+6. Copied a file to all servers
+7. Verified copied file contents
+
+Modules used:
+
+- command
+- dnf
+- copy
+
+Learned:
+
+- How Ansible executes one-time tasks
+- Purpose of --become
+- Difference between command and shell modules
+- How modules interact with managed nodes
+```
+
+***
+
+# Task 6: Inventory Groups, Group of Groups (`:children`), Inventory Patterns, and ansible.cfg Configuration
+
+So far:
+
+✅ Installed Ansible
+
+✅ Created inventory
+
+✅ Connected to EC2 instances
+
+✅ Executed ad-hoc commands
+
+Now we will learn how to organize inventories properly and simplify Ansible command execution.
+
+---
+
+# Why Do We Need Inventory Groups?
+
+Imagine managing:
+
+```text id="t6a001"
+5 Web Servers
+3 App Servers
+2 Database Servers
+```
+
+Without groups:
+
+```bash id="t6a002"
+ansible web1,web2,web3,web4,web5 -m ping
+```
+
+This becomes difficult to manage.
+
+Instead:
+
+```ini id="t6a003"
+[web]
+web1
+web2
+web3
+web4
+web5
+```
+
+Now:
+
+```bash id="t6a004"
+ansible web -m ping
+```
+
+Ansible automatically targets all web servers.
+
+---
+
+# Current Inventory Structure
+
+Current inventory:
+
+```ini id="t6a005"
+[web]
+web-server ansible_host=<WEB_IP>
+
+[app]
+app-server ansible_host=<APP_IP>
+
+[db]
+db-server ansible_host=<DB_IP>
+
+[all:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=/home/malathi/.ssh/ansible-lab.pem
+```
+
+---
+
+# Step 1: Create a Group of Groups
+
+Suppose we want to manage:
+
+```text id="t6a006"
+web
+app
+db
+```
+
+together.
+
+We can create a parent group.
+
+Edit inventory:
+
+```bash id="t6a007"
+nano inventory.ini
+```
+
+Add:
+
+```ini id="t6a008"
+[servers:children]
+web
+app
+db
+```
+
+Complete inventory:
+
+```ini id="t6a009"
+[web]
+web-server ansible_host=<WEB_IP>
+
+[app]
+app-server ansible_host=<APP_IP>
+
+[db]
+db-server ansible_host=<DB_IP>
+
+[servers:children]
+web
+app
+db
+
+[all:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=/home/malathi/.ssh/ansible-lab.pem
+```
+
+---
+
+# What Does `:children` Mean?
+
+```ini id="t6a010"
+[servers:children]
+web
+app
+db
+```
+
+Meaning:
+
+```text id="t6a011"
+servers
+   |
+   +---- web
+   |
+   +---- app
+   |
+   +---- db
+```
+
+Parent group:
+
+```text id="t6a012"
+servers
+```
+
+Child groups:
+
+```text id="t6a013"
+web
+app
+db
+```
+
+---
+
+# Verify Inventory Structure
+
+Run:
+
+```bash id="t6a014"
+ansible-inventory -i inventory.ini --graph
+```
+
+Expected:
+
+```text id="t6a015"
+@all:
+  |--@ungrouped:
+  |--@servers:
+  |  |--@web:
+  |  |  |--web-server
+  |  |--@app:
+  |  |  |--app-server
+  |  |--@db:
+  |     |--db-server
+```
+
+---
+
+# Step 2: Test Parent Group
+
+Instead of:
+
+```bash id="t6a016"
+ansible web -m ping
+ansible app -m ping
+ansible db -m ping
+```
+
+Run:
+
+```bash id="t6a017"
+ansible servers -i inventory.ini -m ping
+```
+
+Expected:
+
+```text id="t6a018"
+web-server | SUCCESS => {
+    "ping": "pong"
+}
+
+app-server | SUCCESS => {
+    "ping": "pong"
+}
+
+db-server | SUCCESS => {
+    "ping": "pong"
+}
+```
+
+One command reaches every server.
+
+---
+
+# Inventory Patterns
+
+Inventory patterns determine which hosts receive tasks.
+
+---
+
+# Pattern 1: All Hosts
+
+```bash id="t6a019"
+ansible all -i inventory.ini -m ping
+```
+
+Targets:
+
+```text id="t6a020"
+web-server
+app-server
+db-server
+```
+
+---
+
+# Pattern 2: Single Group
+
+```bash id="t6a021"
+ansible web -i inventory.ini -m ping
+```
+
+Targets:
+
+```text id="t6a022"
+web-server
+```
+
+---
+
+# Pattern 3: Multiple Groups
+
+```bash id="t6a023"
+ansible "web:app" -i inventory.ini -m ping
+```
+
+Targets:
+
+```text id="t6a024"
+web-server
+app-server
+```
+
+---
+
+# Pattern 4: Exclude Group
+
+```bash id="t6a025"
+ansible "servers:!db" -i inventory.ini -m ping
+```
+
+Targets:
+
+```text id="t6a026"
+web-server
+app-server
+```
+
+Excluded:
+
+```text id="t6a027"
+db-server
+```
+
+---
+
+# Pattern 5: Intersection
+
+Example:
+
+```bash id="t6a028"
+ansible "servers:&web" -i inventory.ini -m ping
+```
+
+Targets:
+
+```text id="t6a029"
+web-server
+```
+
+Meaning:
+
+```text id="t6a030"
+Servers AND Web
+```
+
+---
+
+# Pattern Reference Table
+
+| Pattern      | Meaning      |
+| ------------ | ------------ |
+| all          | All hosts    |
+| web          | Web group    |
+| app          | App group    |
+| db           | DB group     |
+| servers      | Parent group |
+| web:app      | Union        |
+| servers:!db  | Exclude DB   |
+| servers:&web | Intersection |
+
+---
+
+# Why ansible.cfg?
+
+Currently every command requires:
+
+```bash id="t6a031"
+ansible all -i inventory.ini -m ping
+```
+
+Notice:
+
+```text id="t6a032"
+-i inventory.ini
+```
+
+is repeated every time.
+
+Ansible configuration can eliminate this repetition.
+
+---
+
+# Step 3: Create ansible.cfg
+
+Create file:
+
+```bash id="t6a033"
+touch ansible.cfg
+```
+
+Verify:
+
+```bash id="t6a034"
+ls
+```
+
+Expected:
+
+```text id="t6a035"
+ansible.cfg
+inventory.ini
+```
+
+---
+
+# Step 4: Configure ansible.cfg
+
+Open:
+
+```bash id="t6a036"
+nano ansible.cfg
+```
+
+Add:
+
+```ini id="t6a037"
+[defaults]
+
+inventory = inventory.ini
+
+host_key_checking = False
+
+remote_user = ec2-user
+```
+
+Save:
+
+```text id="t6a038"
+CTRL + O
+ENTER
+CTRL + X
+```
+
+---
+
+# Understanding Each Setting
+
+## inventory
+
+```ini id="t6a039"
+inventory = inventory.ini
+```
+
+Default inventory file.
+
+No need for:
+
+```bash id="t6a040"
+-i inventory.ini
+```
+
+again.
+
+---
+
+## host_key_checking
+
+```ini id="t6a041"
+host_key_checking = False
+```
+
+Prevents prompts such as:
+
+```text id="t6a042"
+Are you sure you want to continue connecting?
+```
+
+Useful in automation labs.
+
+---
+
+## remote_user
+
+```ini id="t6a043"
+remote_user = ec2-user
+```
+
+Default SSH user.
+
+No need for:
+
+```bash id="t6a044"
+-u ec2-user
+```
+
+in commands.
+
+---
+
+# Verify Configuration
+
+Run:
+
+```bash id="t6a045"
+ansible --version
+```
+
+Expected:
+
+```text id="t6a046"
+config file = /home/malathi/.../ansible.cfg
+```
+
+This confirms Ansible is reading the configuration.
+
+---
+
+# Test Without Inventory Argument
+
+Previously:
+
+```bash id="t6a047"
+ansible all -i inventory.ini -m ping
+```
+
+Now:
+
+```bash id="t6a048"
+ansible all -m ping
+```
+
+Expected:
+
+```text id="t6a049"
+web-server | SUCCESS
+app-server | SUCCESS
+db-server | SUCCESS
+```
+
+Because inventory is automatically loaded.
+
+---
+
+# Directory Structure After Task 6
+
+```text id="t6a050"
+ansible-practice/
+|
+|-- inventory.ini
+|
+|-- ansible.cfg
+|
+|-- hello.txt
+```
+
+---
+
+# Documentation Questions
+
+## What Is the Purpose of `:children`?
+
+### Answer
+
+`:children` is used to create a parent group from existing groups.
+
+Example:
+
+```ini id="t6a051"
+[servers:children]
+web
+app
+db
+```
+
+This allows a single command to target all child groups through the parent group.
+
+---
+
+## Why Use Inventory Groups?
+
+### Answer
+
+Inventory groups organize hosts based on their roles.
+
+Benefits:
+
+* Easier management
+* Better scalability
+* Simpler playbooks
+* Reduced command complexity
+
+Example:
+
+```bash id="t6a052"
+ansible web -m ping
+```
+
+instead of listing individual servers.
+
+---
+
+## What Is the Purpose of ansible.cfg?
+
+### Answer
+
+`ansible.cfg` stores default Ansible settings such as:
+
+* Inventory location
+* Default user
+* SSH behavior
+* Logging configuration
+
+This reduces repetitive command-line arguments and standardizes Ansible execution.
+
+---
+
+## Why Disable host_key_checking in Labs?
+
+### Answer
+
+Disabling host key checking prevents SSH confirmation prompts that can interrupt automation.
+
+Example:
+
+```text id="t6a053"
+Are you sure you want to continue connecting?
+```
+
+In production environments, host key checking should usually remain enabled for better security.
+
+---
+
+# Lab Notes
+
+```markdown id="t6a054"
+## Task 6 - Inventory Groups and Ansible Configuration
+
+Created parent group:
+
+[servers:children]
+
+Included:
+
+- web
+- app
+- db
+
+Verified inventory graph.
+
+Learned inventory patterns:
+
+- all
+- web
+- web:app
+- servers:!db
+- servers:&web
+
+Created ansible.cfg:
+
+[defaults]
+inventory = inventory.ini
+host_key_checking = False
+remote_user = ec2-user
+
+Verified Ansible automatically loads inventory and configuration settings.
+```
+
+***
+
+# Task 7: Create Your First Ansible Playbook
+
+So far:
+
+✅ Installed Ansible
+
+✅ Created Inventory
+
+✅ Tested Connectivity
+
+✅ Executed Ad-Hoc Commands
+
+✅ Configured Inventory Groups
+
+✅ Created `ansible.cfg`
+
+Now we move to the most important concept in Ansible:
+
+# What Is a Playbook?
+
+A Playbook is a YAML file that defines automation tasks in a structured and reusable way.
+
+Instead of running:
+
+```bash
+ansible web -m dnf -a "name=nginx state=present" --become
+
+ansible web -m service -a "name=nginx state=started" --become
+```
+
+every time, we define the desired state once.
+
+Example:
+
+```yaml
+Install nginx
+Start nginx
+Enable nginx
+```
+
+and Ansible performs the actions automatically.
+
+---
+
+# Why Playbooks?
+
+Ad-hoc commands are useful for:
+
+* Quick checks
+* One-time tasks
+* Troubleshooting
+
+Playbooks are useful for:
+
+* Repeatable automation
+* Infrastructure provisioning
+* Application deployment
+* Configuration management
+
+---
+
+# Understanding YAML
+
+Ansible Playbooks use YAML.
+
+YAML means:
+
+```text
+YAML Ain't Markup Language
+```
+
+YAML relies heavily on indentation.
+
+---
+
+## YAML Rules
+
+### Key Value Pair
+
+```yaml
+name: Install nginx
+```
+
+---
+
+### List
+
+```yaml
+packages:
+  - git
+  - nginx
+  - docker
+```
+
+---
+
+### Dictionary
+
+```yaml
+user:
+  name: malathi
+  role: admin
+```
+
+---
+
+### Important Rule
+
+Use spaces.
+
+Do NOT use tabs.
+
+Correct:
+
+```yaml
+tasks:
+  - name: Install nginx
+```
+
+Wrong:
+
+```yaml
+tasks:
+	- name: Install nginx
+```
+
+---
+
+# Structure of a Playbook
+
+Basic structure:
+
+```yaml
+---
+- name: Play Name
+  hosts: web
+
+  tasks:
+
+    - name: Task Name
+      module:
+        parameter: value
+```
+
+---
+
+# Understanding Each Section
+
+## Play
+
+```yaml
+- name: Install Nginx Play
+```
+
+A play is a set of tasks executed on selected hosts.
+
+---
+
+## Hosts
+
+```yaml
+hosts: web
+```
+
+Target group.
+
+Could be:
+
+```yaml
+hosts: web
+hosts: app
+hosts: db
+hosts: servers
+hosts: all
+```
+
+---
+
+## Tasks
+
+```yaml
+tasks:
+```
+
+Contains actions to execute.
+
+---
+
+## Modules
+
+Example:
+
+```yaml
+dnf:
+  name: nginx
+  state: present
+```
+
+Module:
+
+```text
+dnf
+```
+
+Parameters:
+
+```text
+name
+state
+```
+
+---
+
+# Task 7.1 – Create First Playbook
+
+Create file:
+
+```bash
+touch install-nginx.yml
+```
+
+Verify:
+
+```bash
+ls
+```
+
+Expected:
+
+```text
+ansible.cfg
+inventory.ini
+install-nginx.yml
+```
+
+---
+
+# Step 1: Create Playbook
+
+Open:
+
+```bash
+nano install-nginx.yml
+```
+
+Add:
+
+```yaml
+---
+- name: Install Nginx on Web Server
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Install nginx
+
+      dnf:
+        name: nginx
+        state: present
+```
+
+Save:
+
+```text
+CTRL + O
+ENTER
+CTRL + X
+```
+
+---
+
+# Understanding This Playbook
+
+## Play Name
+
+```yaml
+name: Install Nginx on Web Server
+```
+
+Human-readable description.
+
+---
+
+## Hosts
+
+```yaml
+hosts: web
+```
+
+Only the web group receives this play.
+
+---
+
+## Become
+
+```yaml
+become: true
+```
+
+Equivalent to:
+
+```bash
+--become
+```
+
+Required because package installation needs root privileges.
+
+---
+
+## Task
+
+```yaml
+- name: Install nginx
+```
+
+Task description.
+
+---
+
+## Module
+
+```yaml
+dnf:
+```
+
+Package manager module.
+
+---
+
+## Desired State
+
+```yaml
+state: present
+```
+
+Meaning:
+
+```text
+Install package if missing.
+Do nothing if already installed.
+```
+
+---
+
+# Step 2: Check Playbook Syntax
+
+Before execution:
+
+```bash
+ansible-playbook install-nginx.yml --syntax-check
+```
+
+Expected:
+
+```text
+playbook: install-nginx.yml
+```
+
+No errors means YAML is valid.
+
+---
+
+# Step 3: Run Playbook
+
+Execute:
+
+```bash
+ansible-playbook install-nginx.yml
+```
+
+Expected:
+
+```text
+PLAY [Install Nginx on Web Server]
+
+TASK [Install nginx]
+changed: [web-server]
+
+PLAY RECAP
+
+web-server : ok=1 changed=1
+```
+
+---
+
+# What Happened Internally?
+
+```text
+Control Node
+      |
+      | SSH
+      |
+      v
+
+Web Server
+
+Install nginx
+```
+
+Workflow:
+
+```text
+1. Read playbook
+2. Read inventory
+3. Find web group
+4. Connect through SSH
+5. Execute dnf module
+6. Install nginx
+7. Return result
+```
+
+---
+
+# Verify Nginx Installation
+
+Command:
+
+```bash
+ansible web -m command -a "nginx -v"
+```
+
+Expected:
+
+```text
+web-server | CHANGED | rc=0 >>
+nginx version: nginx/1.x.x
+```
+
+---
+
+# Task 7.2 – Manage Service Using Playbook
+
+Installing software is only part of the job.
+
+We also need to:
+
+```text
+Start service
+Enable service
+```
+
+---
+
+# Update Playbook
+
+Edit:
+
+```bash
+nano install-nginx.yml
+```
+
+Replace with:
+
+```yaml
+---
+- name: Install and Configure Nginx
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Install nginx
+
+      dnf:
+        name: nginx
+        state: present
+
+    - name: Start nginx service
+
+      service:
+        name: nginx
+        state: started
+
+    - name: Enable nginx service
+
+      service:
+        name: nginx
+        enabled: true
+```
+
+---
+
+# Run Playbook Again
+
+```bash
+ansible-playbook install-nginx.yml
+```
+
+Expected:
+
+```text
+TASK [Install nginx]
+ok
+
+TASK [Start nginx service]
+changed
+
+TASK [Enable nginx service]
+changed
+```
+
+---
+
+# Verify Service Status
+
+```bash
+ansible web -m command -a "systemctl status nginx"
+```
+
+Expected:
+
+```text
+Active: active (running)
+```
+
+---
+
+# Verify Nginx Is Listening
+
+```bash
+ansible web -m command -a "ss -tulpn"
+```
+
+Expected:
+
+```text
+nginx
+LISTEN
+80
+```
+
+---
+
+# Idempotency – The Most Important Concept
+
+One of Ansible's biggest strengths is:
+
+```text
+Idempotency
+```
+
+---
+
+# What Is Idempotency?
+
+Running the same playbook multiple times produces the same end result.
+
+Example:
+
+First run:
+
+```yaml
+dnf:
+  name: nginx
+  state: present
+```
+
+Output:
+
+```text
+changed
+```
+
+because nginx was installed.
+
+---
+
+Second run:
+
+```text
+ok
+```
+
+because nginx is already installed.
+
+Nothing changes.
+
+---
+
+# Demonstration
+
+Run again:
+
+```bash
+ansible-playbook install-nginx.yml
+```
+
+Expected:
+
+```text
+TASK [Install nginx]
+ok
+
+TASK [Start nginx service]
+ok
+
+TASK [Enable nginx service]
+ok
+```
+
+Recap:
+
+```text
+changed=0
+```
+
+---
+
+# Why Idempotency Matters
+
+Without idempotency:
+
+```text
+Install package
+Install package again
+Install package again
+Install package again
+```
+
+This creates:
+
+* Unnecessary work
+* Slow execution
+* Unpredictable results
+
+---
+
+With Ansible:
+
+```text
+Desired State
+
+Package Present
+Service Running
+Service Enabled
+```
+
+Ansible checks first and changes only when necessary.
+
+---
+
+# Ad-Hoc vs Playbook
+
+| Ad-Hoc Command         | Playbook            |
+| ---------------------- | ------------------- |
+| One-time task          | Reusable            |
+| CLI only               | YAML file           |
+| Difficult to scale     | Easy to scale       |
+| Not version controlled | Git friendly        |
+| Less structured        | Structured          |
+| Good for quick tasks   | Good for automation |
+
+---
+
+# Documentation Questions
+
+## What Is a Playbook?
+
+### Answer
+
+A Playbook is a YAML file that defines automation tasks in a structured and repeatable manner. It allows multiple tasks to be executed against managed nodes while maintaining the desired state of the infrastructure.
+
+---
+
+## What Is Idempotency?
+
+### Answer
+
+Idempotency means that running the same playbook multiple times produces the same end state. Ansible changes the system only when necessary and skips tasks that are already compliant with the desired configuration.
+
+Example:
+
+```yaml
+dnf:
+  name: nginx
+  state: present
+```
+
+If nginx is already installed, Ansible reports:
+
+```text
+ok
+```
+
+instead of reinstalling it.
+
+---
+
+## Why Use Playbooks Instead of Ad-Hoc Commands?
+
+### Answer
+
+Playbooks provide reusable, version-controlled, structured automation that can execute multiple tasks in sequence. They are easier to maintain, scale, and share across teams compared to individual ad-hoc commands.
+
+---
+
+# Lab Notes
+
+```markdown
+## Task 7 - First Ansible Playbook
+
+Created first playbook:
+
+install-nginx.yml
+
+Tasks:
+
+1. Install nginx
+2. Start nginx service
+3. Enable nginx service
+
+Commands used:
+
+ansible-playbook install-nginx.yml
+
+Verified:
+
+- nginx installation
+- nginx service status
+- nginx listening ports
+
+Learned:
+
+- YAML syntax
+- Playbook structure
+- hosts
+- tasks
+- modules
+- become
+- service management
+- idempotency
+```
+
+***
+
+# Task 8: Variables, Facts, Registered Variables, Debug Module, and Dynamic Playbook Configuration
+
+So far:
+
+✅ Installed Ansible
+
+✅ Created Inventory
+
+✅ Executed Ad-Hoc Commands
+
+✅ Created Inventory Groups
+
+✅ Configured `ansible.cfg`
+
+✅ Created First Playbook
+
+✅ Learned Idempotency
+
+Now we move to one of the most powerful features in Ansible:
+
+# Variables and Facts
+
+Without variables:
+
+```yaml id="t8a001"
+dnf:
+  name: nginx
+```
+
+Package name is hardcoded.
+
+If tomorrow you want:
+
+```text id="t8a002"
+httpd
+docker
+git
+apache2
+```
+
+you must edit the playbook.
+
+Variables make playbooks reusable.
+
+---
+
+# What Are Variables?
+
+Variables store values that can be reused throughout a playbook.
+
+Example:
+
+```yaml id="t8a003"
+web_package: nginx
+```
+
+Usage:
+
+```yaml id="t8a004"
+dnf:
+  name: "{{ web_package }}"
+```
+
+Ansible replaces:
+
+```text id="t8a005"
+{{ web_package }}
+```
+
+with:
+
+```text id="t8a006"
+nginx
+```
+
+during execution.
+
+---
+
+# Why Use Variables?
+
+Benefits:
+
+* Reusability
+* Maintainability
+* Dynamic configuration
+* Environment-specific deployments
+* Less duplication
+
+---
+
+# Task 8.1 – Create a Variable-Based Playbook
+
+Create:
+
+```bash id="t8a007"
+touch variables-demo.yml
+```
+
+Open:
+
+```bash id="t8a008"
+nano variables-demo.yml
+```
+
+---
+
+# Playbook with Variables
+
+```yaml id="t8a009"
+---
+- name: Variables Demo
+
+  hosts: web
+
+  become: true
+
+  vars:
+
+    package_name: nginx
+
+  tasks:
+
+    - name: Install package
+
+      dnf:
+        name: "{{ package_name }}"
+        state: present
+```
+
+Save and exit.
+
+---
+
+# Understanding Variable Syntax
+
+Variable declaration:
+
+```yaml id="t8a010"
+vars:
+
+  package_name: nginx
+```
+
+Variable usage:
+
+```yaml id="t8a011"
+{{ package_name }}
+```
+
+Ansible automatically substitutes the value.
+
+---
+
+# Execute Playbook
+
+```bash id="t8a012"
+ansible-playbook variables-demo.yml
+```
+
+Expected:
+
+```text id="t8a013"
+TASK [Install package]
+ok
+```
+
+or
+
+```text id="t8a014"
+changed
+```
+
+depending on current state.
+
+---
+
+# Multiple Variables Example
+
+```yaml id="t8a015"
+vars:
+
+  package_name: nginx
+
+  service_name: nginx
+
+  owner_name: ec2-user
+```
+
+Usage:
+
+```yaml id="t8a016"
+{{ package_name }}
+
+{{ service_name }}
+
+{{ owner_name }}
+```
+
+---
+
+# Task 8.2 – Understanding Facts
+
+Facts are information automatically collected by Ansible from managed nodes.
+
+Examples:
+
+```text id="t8a017"
+Hostname
+IP Address
+Operating System
+Memory
+CPU
+Architecture
+Kernel Version
+```
+
+---
+
+# How Facts Work
+
+When a playbook starts:
+
+```text id="t8a018"
+Gather Facts
+```
+
+runs automatically.
+
+Workflow:
+
+```text id="t8a019"
+Control Node
+      |
+      v
+
+Gather Facts
+
+      |
+      v
+
+Managed Node
+
+Returns:
+
+OS
+IP
+CPU
+Memory
+Hostname
+```
+
+---
+
+# View Facts
+
+Run:
+
+```bash id="t8a020"
+ansible web -m setup
+```
+
+Output:
+
+```text id="t8a021"
+ansible_hostname
+ansible_distribution
+ansible_default_ipv4
+ansible_memory_mb
+ansible_processor
+```
+
+Large amount of information will be displayed.
+
+---
+
+# View Specific Facts
+
+Hostname:
+
+```bash id="t8a022"
+ansible web -m setup -a "filter=ansible_hostname"
+```
+
+Expected:
+
+```text id="t8a023"
+ansible_hostname: ip-172-31-34-213
+```
+
+---
+
+OS:
+
+```bash id="t8a024"
+ansible web -m setup -a "filter=ansible_distribution"
+```
+
+Expected:
+
+```text id="t8a025"
+ansible_distribution: Amazon
+```
+
+---
+
+IP Address:
+
+```bash id="t8a026"
+ansible web -m setup -a "filter=ansible_default_ipv4"
+```
+
+Expected:
+
+```text id="t8a027"
+ansible_default_ipv4:
+  address: 172.31.x.x
+```
+
+---
+
+# Common Facts
+
+| Fact                         | Meaning          |
+| ---------------------------- | ---------------- |
+| ansible_hostname             | Server hostname  |
+| ansible_distribution         | Operating System |
+| ansible_kernel               | Kernel version   |
+| ansible_architecture         | CPU architecture |
+| ansible_processor_vcpus      | CPU count        |
+| ansible_memtotal_mb          | Total RAM        |
+| ansible_default_ipv4.address | IP Address       |
+
+---
+
+# Task 8.3 – Using Facts in a Playbook
+
+Create:
+
+```bash id="t8a028"
+touch facts-demo.yml
+```
+
+Open:
+
+```bash id="t8a029"
+nano facts-demo.yml
+```
+
+Add:
+
+```yaml id="t8a030"
+---
+- name: Facts Demo
+
+  hosts: web
+
+  tasks:
+
+    - name: Show hostname
+
+      debug:
+        msg: "{{ ansible_hostname }}"
+
+    - name: Show operating system
+
+      debug:
+        msg: "{{ ansible_distribution }}"
+
+    - name: Show IP address
+
+      debug:
+        msg: "{{ ansible_default_ipv4.address }}"
+```
+
+---
+
+# Execute
+
+```bash id="t8a031"
+ansible-playbook facts-demo.yml
+```
+
+Expected:
+
+```text id="t8a032"
+TASK [Show hostname]
+ok: msg=ip-172-31-34-213
+
+TASK [Show operating system]
+ok: msg=Amazon
+
+TASK [Show IP address]
+ok: msg=172.31.x.x
+```
+
+---
+
+# Understanding the Debug Module
+
+Debug is used for displaying information.
+
+Example:
+
+```yaml id="t8a033"
+debug:
+  msg: "Hello World"
+```
+
+Output:
+
+```text id="t8a034"
+Hello World
+```
+
+---
+
+# Why Debug Is Useful
+
+Used for:
+
+* Troubleshooting
+* Viewing variables
+* Viewing facts
+* Validating logic
+* Testing playbooks
+
+---
+
+# Task 8.4 – Registered Variables
+
+One of Ansible's most powerful features is:
+
+```text id="t8a035"
+register
+```
+
+Register stores command output in a variable.
+
+---
+
+# Example
+
+Create:
+
+```bash id="t8a036"
+touch register-demo.yml
+```
+
+Open:
+
+```bash id="t8a037"
+nano register-demo.yml
+```
+
+Add:
+
+```yaml id="t8a038"
+---
+- name: Register Demo
+
+  hosts: web
+
+  tasks:
+
+    - name: Get uptime
+
+      command: uptime
+
+      register: uptime_output
+
+    - name: Display uptime
+
+      debug:
+        var: uptime_output.stdout
+```
+
+---
+
+# Execute
+
+```bash id="t8a039"
+ansible-playbook register-demo.yml
+```
+
+Expected:
+
+```text id="t8a040"
+TASK [Get uptime]
+changed
+
+TASK [Display uptime]
+
+ok:
+  uptime_output.stdout:
+  14:12:45 up 2 hours
+```
+
+---
+
+# What Happened?
+
+```text id="t8a041"
+uptime command
+      |
+      v
+
+Result
+
+stored in
+
+uptime_output
+```
+
+Then:
+
+```yaml id="t8a042"
+uptime_output.stdout
+```
+
+displays the result.
+
+---
+
+# Register Workflow
+
+```text id="t8a043"
+Run Command
+      |
+      v
+
+Store Output
+
+      |
+      v
+
+Use Output Later
+```
+
+---
+
+# Common Registered Fields
+
+| Field   | Meaning            |
+| ------- | ------------------ |
+| stdout  | Standard output    |
+| stderr  | Error output       |
+| rc      | Return code        |
+| changed | Task changed state |
+
+---
+
+# Example
+
+```yaml id="t8a044"
+register: result
+```
+
+Usage:
+
+```yaml id="t8a045"
+result.stdout
+
+result.stderr
+
+result.rc
+```
+
+---
+
+# Task 8.5 – Dynamic Playbook Configuration
+
+Instead of hardcoding values:
+
+```yaml id="t8a046"
+package_name: nginx
+```
+
+Create dynamic behavior.
+
+---
+
+# Example
+
+```yaml id="t8a047"
+---
+- name: Dynamic Package Installation
+
+  hosts: web
+
+  become: true
+
+  vars:
+
+    package_name: git
+
+  tasks:
+
+    - name: Install package
+
+      dnf:
+        name: "{{ package_name }}"
+        state: present
+```
+
+Today:
+
+```yaml id="t8a048"
+package_name: git
+```
+
+Tomorrow:
+
+```yaml id="t8a049"
+package_name: docker
+```
+
+No playbook logic changes.
+
+Only variable values change.
+
+---
+
+# Variable Precedence (Basic)
+
+Variables can come from:
+
+```text id="t8a050"
+Playbook
+Inventory
+Group Variables
+Host Variables
+Extra Variables
+```
+
+Example:
+
+```bash id="t8a051"
+ansible-playbook demo.yml -e "package_name=httpd"
+```
+
+This overrides playbook values.
+
+---
+
+# Documentation Questions
+
+## What Are Variables in Ansible?
+
+### Answer
+
+Variables store reusable values that can be referenced throughout a playbook. They make playbooks dynamic, flexible, and easier to maintain.
+
+Example:
+
+```yaml id="t8a052"
+package_name: nginx
+```
+
+Usage:
+
+```yaml id="t8a053"
+{{ package_name }}
+```
+
+---
+
+## What Are Facts?
+
+### Answer
+
+Facts are system information automatically collected by Ansible from managed nodes.
+
+Examples include:
+
+* Hostname
+* Operating system
+* Memory
+* CPU
+* Network information
+
+Facts allow playbooks to make decisions based on the target system.
+
+---
+
+## What Is the Debug Module?
+
+### Answer
+
+The debug module displays variables, facts, and messages during playbook execution. It is commonly used for troubleshooting and verifying playbook behavior.
+
+Example:
+
+```yaml id="t8a054"
+debug:
+  msg: "{{ ansible_hostname }}"
+```
+
+---
+
+## What Is a Registered Variable?
+
+### Answer
+
+A registered variable stores the output of a task so it can be used later in the playbook.
+
+Example:
+
+```yaml id="t8a055"
+register: uptime_output
+```
+
+Output can be accessed using:
+
+```yaml id="t8a056"
+uptime_output.stdout
+```
+
+---
+
+# Lab Notes
+
+```markdown id="t8a057"
+## Task 8 - Variables and Facts
+
+Created playbooks:
+
+- variables-demo.yml
+- facts-demo.yml
+- register-demo.yml
+
+Learned:
+
+Variables:
+- package_name
+- service_name
+
+Facts:
+- ansible_hostname
+- ansible_distribution
+- ansible_default_ipv4.address
+
+Debug Module:
+- msg
+- var
+
+Registered Variables:
+- register
+- stdout
+- stderr
+- rc
+
+Executed:
+
+ansible web -m setup
+
+Used facts and variables inside playbooks.
+
+Stored command output using register and displayed results using debug.
+```
+
+***
+
+  # Task 9: Conditionals (`when`), Loops, Tags, Error Handling, and Building Smarter Ansible Playbooks
+
+So far:
+
+✅ Installed Ansible
+
+✅ Created Inventory
+
+✅ Executed Ad-Hoc Commands
+
+✅ Created Playbooks
+
+✅ Learned Variables
+
+✅ Learned Facts
+
+✅ Used Debug Module
+
+✅ Used Registered Variables
+
+Now we will make playbooks smarter by introducing:
+
+```text id="t9a001"
+Conditionals
+Loops
+Tags
+Error Handling
+```
+
+These features allow playbooks to make decisions, repeat tasks, execute selectively, and handle failures gracefully.
+
+---
+
+# Why Do We Need Conditionals?
+
+Without conditionals:
+
+```yaml id="t9a002"
+Install nginx
+Start nginx
+Enable nginx
+```
+
+runs on every host.
+
+Sometimes we want:
+
+```text id="t9a003"
+Run only on Amazon Linux
+Run only on Web Servers
+Run only when disk space is low
+Run only if package is missing
+```
+
+This is where:
+
+```text id="t9a004"
+when
+```
+
+is used.
+
+---
+
+# Task 9.1 – Using Conditionals
+
+Create:
+
+```bash id="t9a005"
+touch when-demo.yml
+```
+
+Open:
+
+```bash id="t9a006"
+nano when-demo.yml
+```
+
+Add:
+
+```yaml id="t9a007"
+---
+- name: Conditional Demo
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Install nginx only on Amazon Linux
+
+      dnf:
+        name: nginx
+        state: present
+
+      when: ansible_distribution == "Amazon"
+```
+
+---
+
+# Execute
+
+```bash id="t9a008"
+ansible-playbook when-demo.yml
+```
+
+Expected:
+
+```text id="t9a009"
+TASK [Install nginx only on Amazon Linux]
+ok
+```
+
+or
+
+```text id="t9a010"
+changed
+```
+
+depending on system state.
+
+---
+
+# Understanding the Condition
+
+```yaml id="t9a011"
+when: ansible_distribution == "Amazon"
+```
+
+Meaning:
+
+```text id="t9a012"
+If OS is Amazon Linux
+      |
+      YES
+      |
+      Run Task
+```
+
+Otherwise:
+
+```text id="t9a013"
+Skip Task
+```
+
+---
+
+# More Examples
+
+## Based on Hostname
+
+```yaml id="t9a014"
+when: ansible_hostname == "web-server"
+```
+
+---
+
+## Based on Memory
+
+```yaml id="t9a015"
+when: ansible_memtotal_mb > 500
+```
+
+---
+
+## Based on CPU Count
+
+```yaml id="t9a016"
+when: ansible_processor_vcpus >= 2
+```
+
+---
+
+# Conditional Workflow
+
+```text id="t9a017"
+Condition
+    |
+    v
+
+True -----------> Execute Task
+
+False ----------> Skip Task
+```
+
+---
+
+# Task 9.2 – Loops
+
+Without loops:
+
+```yaml id="t9a018"
+- name: Install git
+  dnf:
+    name: git
+
+- name: Install nginx
+  dnf:
+    name: nginx
+
+- name: Install wget
+  dnf:
+    name: wget
+```
+
+Repeated code.
+
+Loops solve this.
+
+---
+
+# Create Loop Example
+
+Create:
+
+```bash id="t9a019"
+touch loop-demo.yml
+```
+
+Open:
+
+```bash id="t9a020"
+nano loop-demo.yml
+```
+
+Add:
+
+```yaml id="t9a021"
+---
+- name: Loop Demo
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Install packages
+
+      dnf:
+        name: "{{ item }}"
+        state: present
+
+      loop:
+        - git
+        - wget
+        - curl
+```
+
+---
+
+# Execute
+
+```bash id="t9a022"
+ansible-playbook loop-demo.yml
+```
+
+Expected:
+
+```text id="t9a023"
+git installed
+wget installed
+curl installed
+```
+
+---
+
+# Understanding `item`
+
+During execution:
+
+First iteration:
+
+```text id="t9a024"
+item = git
+```
+
+Second iteration:
+
+```text id="t9a025"
+item = wget
+```
+
+Third iteration:
+
+```text id="t9a026"
+item = curl
+```
+
+---
+
+# Loop Workflow
+
+```text id="t9a027"
+Package List
+
+git
+wget
+curl
+
+    |
+    v
+
+Loop
+
+    |
+    v
+
+Install Each Package
+```
+
+---
+
+# Loop With Debug
+
+Example:
+
+```yaml id="t9a028"
+- name: Print package
+
+  debug:
+    msg: "{{ item }}"
+
+  loop:
+    - git
+    - nginx
+    - docker
+```
+
+Output:
+
+```text id="t9a029"
+git
+nginx
+docker
+```
+
+---
+
+# Task 9.3 – Tags
+
+Imagine a playbook containing:
+
+```text id="t9a030"
+Install Packages
+Configure Firewall
+Configure Users
+Deploy Application
+```
+
+Sometimes we only want:
+
+```text id="t9a031"
+Install Packages
+```
+
+Tags help achieve this.
+
+---
+
+# Create Tag Example
+
+Create:
+
+```bash id="t9a032"
+touch tags-demo.yml
+```
+
+Open:
+
+```bash id="t9a033"
+nano tags-demo.yml
+```
+
+Add:
+
+```yaml id="t9a034"
+---
+- name: Tags Demo
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Install nginx
+
+      dnf:
+        name: nginx
+        state: present
+
+      tags:
+        - install
+
+    - name: Start nginx
+
+      service:
+        name: nginx
+        state: started
+
+      tags:
+        - service
+```
+
+---
+
+# Run Entire Playbook
+
+```bash id="t9a035"
+ansible-playbook tags-demo.yml
+```
+
+---
+
+# Run Only Install Tasks
+
+```bash id="t9a036"
+ansible-playbook tags-demo.yml --tags install
+```
+
+Only:
+
+```text id="t9a037"
+Install nginx
+```
+
+executes.
+
+---
+
+# Run Only Service Tasks
+
+```bash id="t9a038"
+ansible-playbook tags-demo.yml --tags service
+```
+
+Only:
+
+```text id="t9a039"
+Start nginx
+```
+
+executes.
+
+---
+
+# View Tags
+
+```bash id="t9a040"
+ansible-playbook tags-demo.yml --list-tags
+```
+
+Expected:
+
+```text id="t9a041"
+TASK TAGS:
+
+install
+service
+```
+
+---
+
+# Why Tags Matter
+
+Benefits:
+
+* Faster execution
+* Partial deployments
+* Easier testing
+* Better maintenance
+
+---
+
+# Task 9.4 – Error Handling
+
+Failures happen:
+
+```text id="t9a042"
+Package missing
+Network issue
+Service failure
+Invalid command
+```
+
+Ansible provides mechanisms to handle failures.
+
+---
+
+# Example Failure
+
+Create:
+
+```bash id="t9a043"
+touch error-demo.yml
+```
+
+Open:
+
+```bash id="t9a044"
+nano error-demo.yml
+```
+
+Add:
+
+```yaml id="t9a045"
+---
+- name: Error Demo
+
+  hosts: web
+
+  tasks:
+
+    - name: Run invalid command
+
+      command: fakecommand
+```
+
+Execute:
+
+```bash id="t9a046"
+ansible-playbook error-demo.yml
+```
+
+Expected:
+
+```text id="t9a047"
+FAILED
+```
+
+---
+
+# Ignore Errors
+
+Sometimes failure is acceptable.
+
+Example:
+
+```yaml id="t9a048"
+---
+- name: Ignore Error Demo
+
+  hosts: web
+
+  tasks:
+
+    - name: Run invalid command
+
+      command: fakecommand
+
+      ignore_errors: yes
+
+    - name: Continue execution
+
+      debug:
+        msg: "Playbook continues"
+```
+
+---
+
+# Execute
+
+```bash id="t9a049"
+ansible-playbook error-demo.yml
+```
+
+Expected:
+
+```text id="t9a050"
+FAILED
+...ignored
+
+Playbook continues
+```
+
+---
+
+# Understanding `ignore_errors`
+
+```yaml id="t9a051"
+ignore_errors: yes
+```
+
+Meaning:
+
+```text id="t9a052"
+Task Fails
+     |
+     v
+
+Continue Playbook
+```
+
+instead of:
+
+```text id="t9a053"
+Task Fails
+     |
+     v
+
+Stop Playbook
+```
+
+---
+
+# Task 9.5 – Using Registered Variables with Conditions
+
+Create:
+
+```bash id="t9a054"
+touch register-condition.yml
+```
+
+Open:
+
+```bash id="t9a055"
+nano register-condition.yml
+```
+
+Add:
+
+```yaml id="t9a056"
+---
+- name: Register and Condition Demo
+
+  hosts: web
+
+  tasks:
+
+    - name: Check uptime
+
+      command: uptime
+
+      register: uptime_result
+
+    - name: Display uptime
+
+      debug:
+        var: uptime_result.stdout
+
+      when: uptime_result.rc == 0
+```
+
+---
+
+# Explanation
+
+First task:
+
+```yaml id="t9a057"
+register: uptime_result
+```
+
+stores command output.
+
+Second task:
+
+```yaml id="t9a058"
+when: uptime_result.rc == 0
+```
+
+runs only if the command succeeded.
+
+---
+
+# Building Smarter Playbooks
+
+Combining concepts:
+
+```yaml id="t9a059"
+---
+- name: Smart Playbook
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Install packages
+
+      dnf:
+        name: "{{ item }}"
+        state: present
+
+      loop:
+        - git
+        - wget
+
+      when: ansible_distribution == "Amazon"
+
+      tags:
+        - install
+```
+
+Features used:
+
+```text id="t9a060"
+Variables
+Loops
+Conditionals
+Tags
+```
+
+All together.
+
+---
+
+# Documentation Questions
+
+## What Does `when` Do?
+
+### Answer
+
+The `when` statement allows tasks to run only when a specified condition evaluates to true.
+
+Example:
+
+```yaml id="t9a061"
+when: ansible_distribution == "Amazon"
+```
+
+This ensures the task runs only on Amazon Linux systems.
+
+---
+
+## Why Use Loops?
+
+### Answer
+
+Loops allow the same task to execute multiple times using different values, reducing duplication and making playbooks easier to maintain.
+
+Example:
+
+```yaml id="t9a062"
+loop:
+  - git
+  - wget
+  - curl
+```
+
+---
+
+## What Are Tags?
+
+### Answer
+
+Tags allow selective execution of tasks within a playbook.
+
+Example:
+
+```bash id="t9a063"
+ansible-playbook demo.yml --tags install
+```
+
+Only tasks tagged with `install` will run.
+
+---
+
+## What Does `ignore_errors` Do?
+
+### Answer
+
+`ignore_errors: yes` allows a playbook to continue execution even if a task fails. This is useful when certain failures are expected or non-critical.
+
+---
+
+# Lab Notes
+
+```markdown id="t9a064"
+## Task 9 - Conditionals, Loops, Tags, and Error Handling
+
+Created playbooks:
+
+- when-demo.yml
+- loop-demo.yml
+- tags-demo.yml
+- error-demo.yml
+- register-condition.yml
+
+Learned:
+
+Conditionals:
+- when
+
+Loops:
+- loop
+- item
+
+Tags:
+- install
+- service
+
+Error Handling:
+- ignore_errors
+
+Combined:
+- variables
+- conditions
+- loops
+- tags
+
+Executed selective playbook runs using:
+
+ansible-playbook tags-demo.yml --tags install
+
+Used registered variables with conditional execution.
+```
+
+***
+
+# Task 10: Templates (Jinja2), Handlers, File Management, User Management, and Real-World Configuration Automation
+
+So far:
+
+✅ Installed Ansible
+
+✅ Created Inventory
+
+✅ Executed Ad-Hoc Commands
+
+✅ Created Playbooks
+
+✅ Used Variables
+
+✅ Gathered Facts
+
+✅ Used Registered Variables
+
+✅ Implemented Conditions
+
+✅ Used Loops
+
+✅ Used Tags
+
+✅ Handled Errors
+
+Now we move into real-world automation where Ansible becomes truly powerful.
+
+In production environments, we rarely:
+
+```text id="t10a001"
+Install package only
+```
+
+Instead we:
+
+```text id="t10a002"
+Create users
+Manage files
+Generate configuration files
+Restart services automatically
+Deploy applications
+```
+
+This is where:
+
+```text id="t10a003"
+Templates
+Handlers
+File Management
+User Management
+```
+
+become important.
+
+---
+
+# What Is a Template?
+
+A Template is a file that contains variables.
+
+Instead of creating static files:
+
+```text id="t10a004"
+server_name=myserver
+environment=dev
+```
+
+we create dynamic files.
+
+Example:
+
+```text id="t10a005"
+server_name={{ ansible_hostname }}
+environment=dev
+```
+
+Ansible replaces variables during execution.
+
+---
+
+# Why Templates?
+
+Without templates:
+
+```text id="t10a006"
+web-server.conf
+app-server.conf
+db-server.conf
+```
+
+Three separate files.
+
+With templates:
+
+```text id="t10a007"
+config.j2
+```
+
+One reusable file.
+
+---
+
+# Understanding Jinja2
+
+Ansible uses:
+
+```text id="t10a008"
+Jinja2
+```
+
+templating engine.
+
+Variable syntax:
+
+```jinja2 id="t10a009"
+{{ variable_name }}
+```
+
+Example:
+
+```jinja2 id="t10a010"
+{{ ansible_hostname }}
+```
+
+Ansible replaces:
+
+```text id="t10a011"
+ip-172-31-40-50
+```
+
+during execution.
+
+---
+
+# Task 10.1 – Create a Template
+
+Create templates directory:
+
+```bash id="t10a012"
+mkdir templates
+```
+
+Verify:
+
+```bash id="t10a013"
+ls
+```
+
+Expected:
+
+```text id="t10a014"
+templates
+```
+
+---
+
+# Create Template File
+
+```bash id="t10a015"
+nano templates/server-info.j2
+```
+
+Add:
+
+```jinja2 id="t10a016"
+Server Hostname: {{ ansible_hostname }}
+
+Operating System: {{ ansible_distribution }}
+
+IP Address: {{ ansible_default_ipv4.address }}
+```
+
+Save and exit.
+
+---
+
+# Create Playbook
+
+```bash id="t10a017"
+touch template-demo.yml
+```
+
+Open:
+
+```bash id="t10a018"
+nano template-demo.yml
+```
+
+Add:
+
+```yaml id="t10a019"
+---
+- name: Template Demo
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Generate server information file
+
+      template:
+        src: templates/server-info.j2
+        dest: /tmp/server-info.txt
+```
+
+---
+
+# Execute Playbook
+
+```bash id="t10a020"
+ansible-playbook template-demo.yml
+```
+
+Expected:
+
+```text id="t10a021"
+TASK [Generate server information file]
+changed
+```
+
+---
+
+# Verify Generated File
+
+```bash id="t10a022"
+ansible web -m command -a "cat /tmp/server-info.txt"
+```
+
+Example:
+
+```text id="t10a023"
+Server Hostname: ip-172-31-40-50
+
+Operating System: Amazon
+
+IP Address: 172.31.x.x
+```
+
+---
+
+# Template Workflow
+
+```text id="t10a024"
+Jinja2 Template
+        |
+        v
+
+Variable Substitution
+        |
+        v
+
+Generated File
+```
+
+---
+
+# What Are Handlers?
+
+Handlers are special tasks that run only when notified.
+
+Without handlers:
+
+```yaml id="t10a025"
+Copy Config
+Restart Service
+
+Copy Config
+Restart Service
+
+Copy Config
+Restart Service
+```
+
+Service restarts repeatedly.
+
+Handlers solve this.
+
+---
+
+# Handler Concept
+
+```text id="t10a026"
+Configuration Changed
+        |
+        YES
+        |
+        v
+
+Restart Service
+
+Configuration Not Changed
+        |
+        NO
+        |
+        v
+
+Do Nothing
+```
+
+---
+
+# Task 10.2 – Create Handler Example
+
+Create:
+
+```bash id="t10a027"
+touch handler-demo.yml
+```
+
+Open:
+
+```bash id="t10a028"
+nano handler-demo.yml
+```
+
+Add:
+
+```yaml id="t10a029"
+---
+- name: Handler Demo
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Deploy nginx config
+
+      copy:
+        content: "Hello from Ansible"
+        dest: /usr/share/nginx/html/index.html
+
+      notify:
+        - Restart nginx
+
+  handlers:
+
+    - name: Restart nginx
+
+      service:
+        name: nginx
+        state: restarted
+```
+
+---
+
+# Execute
+
+```bash id="t10a030"
+ansible-playbook handler-demo.yml
+```
+
+Expected:
+
+```text id="t10a031"
+TASK [Deploy nginx config]
+changed
+
+RUNNING HANDLER [Restart nginx]
+changed
+```
+
+---
+
+# Run Again
+
+```bash id="t10a032"
+ansible-playbook handler-demo.yml
+```
+
+Expected:
+
+```text id="t10a033"
+TASK [Deploy nginx config]
+ok
+```
+
+No handler execution.
+
+Why?
+
+Because nothing changed.
+
+---
+
+# Understanding notify
+
+```yaml id="t10a034"
+notify:
+  - Restart nginx
+```
+
+Meaning:
+
+```text id="t10a035"
+If task changes state
+      |
+      v
+
+Call handler
+```
+
+---
+
+# File Management
+
+One of the most common automation tasks.
+
+Examples:
+
+```text id="t10a036"
+Create file
+Delete file
+Copy file
+Manage permissions
+Create directories
+```
+
+---
+
+# Task 10.3 – Create Directory
+
+Create:
+
+```bash id="t10a037"
+touch file-demo.yml
+```
+
+Add:
+
+```yaml id="t10a038"
+---
+- name: File Demo
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Create application directory
+
+      file:
+        path: /opt/demo-app
+        state: directory
+```
+
+---
+
+# Execute
+
+```bash id="t10a039"
+ansible-playbook file-demo.yml
+```
+
+Verify:
+
+```bash id="t10a040"
+ansible web -m command -a "ls -ld /opt/demo-app"
+```
+
+---
+
+# Create File
+
+```yaml id="t10a041"
+- name: Create file
+
+  file:
+    path: /opt/demo-app/app.log
+    state: touch
+```
+
+---
+
+# Delete File
+
+```yaml id="t10a042"
+- name: Delete file
+
+  file:
+    path: /opt/demo-app/app.log
+    state: absent
+```
+
+---
+
+# Common File States
+
+| State     | Meaning              |
+| --------- | -------------------- |
+| directory | Create directory     |
+| touch     | Create file          |
+| absent    | Remove file          |
+| file      | Manage existing file |
+
+---
+
+# User Management
+
+System administrators frequently manage users.
+
+Ansible provides:
+
+```text id="t10a043"
+user module
+```
+
+---
+
+# Task 10.4 – Create User
+
+Create:
+
+```bash id="t10a044"
+touch user-demo.yml
+```
+
+Open:
+
+```bash id="t10a045"
+nano user-demo.yml
+```
+
+Add:
+
+```yaml id="t10a046"
+---
+- name: User Management Demo
+
+  hosts: web
+
+  become: true
+
+  tasks:
+
+    - name: Create devops user
+
+      user:
+        name: devops
+        state: present
+```
+
+---
+
+# Execute
+
+```bash id="t10a047"
+ansible-playbook user-demo.yml
+```
+
+Expected:
+
+```text id="t10a048"
+TASK [Create devops user]
+changed
+```
+
+---
+
+# Verify User
+
+```bash id="t10a049"
+ansible web -m command -a "id devops"
+```
+
+Expected:
+
+```text id="t10a050"
+uid=1001(devops)
+```
+
+---
+
+# Create User with Home Directory
+
+```yaml id="t10a051"
+user:
+  name: devops
+  create_home: true
+  state: present
+```
+
+---
+
+# Remove User
+
+```yaml id="t10a052"
+user:
+  name: devops
+  state: absent
+```
+
+---
+
+# Real-World Example
+
+Let's combine everything.
+
+Create:
+
+```bash id="t10a053"
+touch deploy-web.yml
+```
+
+Add:
+
+```yaml id="t10a054"
+---
+- name: Deploy Web Application
+
+  hosts: web
+
+  become: true
+
+  vars:
+
+    app_user: webadmin
+
+  tasks:
+
+    - name: Install nginx
+
+      dnf:
+        name: nginx
+        state: present
+
+    - name: Create application user
+
+      user:
+        name: "{{ app_user }}"
+        state: present
+
+    - name: Create application directory
+
+      file:
+        path: /opt/webapp
+        state: directory
+
+    - name: Deploy homepage
+
+      copy:
+        content: "Welcome to Ansible Automation"
+        dest: /usr/share/nginx/html/index.html
+
+      notify:
+        - Restart nginx
+
+    - name: Start nginx
+
+      service:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+
+    - name: Restart nginx
+
+      service:
+        name: nginx
+        state: restarted
+```
+
+---
+
+# What This Playbook Does
+
+```text id="t10a055"
+Install nginx
+      |
+      v
+
+Create user
+      |
+      v
+
+Create directory
+      |
+      v
+
+Deploy application
+      |
+      v
+
+Restart nginx if needed
+```
+
+This resembles a real production deployment workflow.
+
+---
+
+# Documentation Questions
+
+## What Is a Template?
+
+### Answer
+
+A template is a dynamic file that uses Jinja2 variables. During playbook execution, Ansible replaces variables with actual values and generates the final configuration file.
+
+Example:
+
+```jinja2 id="t10a056"
+{{ ansible_hostname }}
+```
+
+---
+
+## What Is a Handler?
+
+### Answer
+
+A handler is a special task that executes only when notified by another task. Handlers are commonly used to restart services after configuration changes.
+
+Example:
+
+```yaml id="t10a057"
+notify:
+  - Restart nginx
+```
+
+---
+
+## Why Are Handlers Better Than Normal Tasks?
+
+### Answer
+
+Handlers execute only when changes occur, preventing unnecessary service restarts and improving efficiency.
+
+---
+
+## What Is the Purpose of the File Module?
+
+### Answer
+
+The file module manages files and directories, including creation, deletion, permission changes, and ownership management.
+
+---
+
+## What Is the Purpose of the User Module?
+
+### Answer
+
+The user module manages local system accounts, including creating users, deleting users, creating home directories, and modifying user properties.
+
+---
+
+# Lab Notes
+
+```markdown id="t10a058"
+## Task 10 - Templates, Handlers, File Management, and User Management
+
+Created:
+
+templates/server-info.j2
+
+Playbooks:
+
+- template-demo.yml
+- handler-demo.yml
+- file-demo.yml
+- user-demo.yml
+- deploy-web.yml
+
+Learned:
+
+Templates:
+- Jinja2
+- Variable substitution
+
+Handlers:
+- notify
+- service restart automation
+
+File Module:
+- directory
+- touch
+- absent
+
+User Module:
+- create user
+- delete user
+- create home directory
+
+Built a real-world deployment playbook combining:
+
+- package installation
+- user creation
+- file management
+- service management
+- handlers
+```
+
+***
+
+# Day 68 — Master in 60 Seconds
+
+### Small Revision → Big Impact
+
+---
+
+# Task 1 — Ansible Fundamentals
+
+### Remember Only This
+
+```text
+Terraform  = Creates Infrastructure
+
+Ansible    = Configures Infrastructure
+```
+
+Example:
+
+```text
+Terraform
+   |
+   +--> EC2 Created
+
+Ansible
+   |
+   +--> Install Nginx
+   +--> Create Users
+   +--> Configure Server
+```
+
+### 60 Second Revision
+
+```text
+Agentless
+SSH Based
+Push Model
+YAML Playbooks
+Configuration Management
+```
+
+### Interview One-Liner
+
+> Ansible is an agentless configuration management and automation tool that uses SSH to manage infrastructure.
+
+---
+
+# Task 2 — Lab Setup (Terraform)
+
+### Remember Only This Architecture
+
+```text
+Control Node
+     |
+     | SSH
+     |
++----+----+----+
+|         |    |
+Web      App   DB
+```
+
+### Files To Remember
+
+```text
+provider.tf
+variables.tf
+main.tf
+outputs.tf
+terraform.tfvars
+```
+
+### Terraform Flow
+
+```text
+terraform init
+terraform validate
+terraform plan
+terraform apply
+```
+
+### Interview One-Liner
+
+> Terraform provisions infrastructure while Ansible configures it.
+
+---
+
+# Task 3 — Install Ansible on Control Node
+
+### Most Important Concept
+
+```text
+Ansible Installed ONLY on Control Node
+```
+
+NOT on:
+
+```text
+Web Server
+App Server
+DB Server
+```
+
+### Why?
+
+```text
+SSH
+Python
+Inventory
+
+Enough to manage hosts
+```
+
+### Remember
+
+```text
+Control Node
+      |
+      +--> SSH
+      |
+      +--> Managed Nodes
+```
+
+### Interview One-Liner
+
+> Ansible follows an agentless architecture, so only the control node requires Ansible installation.
+
+---
+
+# Task 4 — Inventory
+
+### Inventory = List of Servers
+
+Example:
+
+```ini
+[web]
+web-server
+
+[app]
+app-server
+
+[db]
+db-server
+```
+
+### Most Important Command
+
+```bash
+ansible all -m ping
+```
+
+Expected:
+
+```text
+pong
+```
+
+### Inventory Purpose
+
+```text
+Who to Manage?
+Inventory
+
+How to Manage?
+Playbook
+```
+
+### Interview One-Liner
+
+> Inventory defines the hosts and groups that Ansible manages.
+
+---
+
+# Task 5 — Ad-Hoc Commands
+
+### Syntax To Remember Forever
+
+```bash
+ansible <group> -m <module> -a "<arguments>"
+```
+
+Example:
+
+```bash
+ansible all -m ping
+```
+
+---
+
+### Most Important Modules
+
+```text
+ping
+command
+copy
+dnf
+shell
+```
+
+---
+
+### command vs shell
+
+#### command
+
+```bash
+ansible all -m command -a "uptime"
+```
+
+```text
+More Secure
+Faster
+No Pipes
+```
+
+#### shell
+
+```bash
+ansible all -m shell -a "df -h | grep nvme"
+```
+
+```text
+Supports Pipes
+Supports Redirects
+```
+
+### Rule
+
+```text
+Use command by default
+
+Use shell only when shell features are needed
+```
+
+---
+
+### --become
+
+Equivalent to:
+
+```bash
+sudo
+```
+
+Example:
+
+```bash
+ansible web -m dnf -a "name=git state=present" --become
+```
+
+Used for:
+
+```text
+Install Packages
+Manage Services
+Modify System Files
+```
+
+### Interview One-Liner
+
+> Ad-hoc commands are one-time Ansible commands used for quick administration tasks without creating a playbook.
+
+---
+
+# Task 6 — Inventory Groups + ansible.cfg
+
+### Parent Group
+
+```ini
+[servers:children]
+
+web
+app
+db
+```
+
+Hierarchy:
+
+```text
+servers
+  |
+  +-- web
+  +-- app
+  +-- db
+```
+
+---
+
+### Inventory Patterns
+
+```bash
+all
+web
+app
+db
+servers
+```
+
+Special:
+
+```bash
+web:app
+```
+
+Union
+
+```bash
+servers:!db
+```
+
+Exclude
+
+```bash
+servers:&web
+```
+
+Intersection
+
+---
+
+### ansible.cfg
+
+Remember Only 3 Lines
+
+```ini
+[defaults]
+
+inventory=inventory.ini
+
+host_key_checking=False
+
+remote_user=ec2-user
+```
+
+Benefits:
+
+```text
+No -i inventory.ini
+
+No -u ec2-user
+
+Less Typing
+```
+
+---
+
+### Interview One-Liner
+
+> ansible.cfg stores default settings such as inventory location, SSH behavior, and default user configuration.
+
+---
+
+# Documentation Questions — Ultra Fast Revision
+
+## Why Install Ansible Only On Control Node?
+
+```text
+Agentless Architecture
+
+SSH + Python
+
+No Agent Needed
+```
+
+---
+
+## Purpose of Inventory?
+
+```text
+Stores Hosts
+
+Creates Groups
+
+Targets Systems
+```
+
+---
+
+## What Does --become Do?
+
+```text
+Privilege Escalation
+
+Equivalent to sudo
+```
+
+---
+
+## command vs shell?
+
+```text
+command = Secure
+
+shell = Pipes, Redirects, Variables
+```
+
+---
+
+## Purpose of :children?
+
+```text
+Group of Groups
+
+Simplifies Management
+```
+
+---
+
+## Purpose of ansible.cfg?
+
+```text
+Default Configuration
+
+Inventory
+SSH Settings
+Default User
+```
+
+---
+
+# Day 68 Final Memory Sheet (30 Seconds Before Interview)
+
+```text
+Ansible = Agentless
+
+Control Node Only
+
+Inventory = Hosts
+
+Groups = Organize Hosts
+
+SSH = Communication
+
+Ping = Connectivity Test
+
+command = Default Module
+
+shell = For Pipes
+
+copy = Transfer Files
+
+dnf = Install Packages
+
+--become = sudo
+
+:children = Parent Group
+
+ansible.cfg = Defaults
+
+Terraform Creates
+
+Ansible Configures
+```
+
